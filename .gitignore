@@ -1,0 +1,43 @@
+# Environment and credentials
+/.env
+/.env.*
+!/.env.example
+/auth.json
+
+# PHP and Laravel
+/vendor/
+/storage/*.key
+/storage/pail/
+*.log
+.phpactor.json
+.phpunit.result.cache
+/.phpunit.cache/
+_ide_helper.php
+
+# Frontend build artifacts
+/node_modules/
+/public/build/
+/public/fonts-manifest.dev.json
+/public/hot
+/public/storage
+
+# Test output
+/coverage/
+
+# Local AI tool settings
+/.agents/
+/.codex/
+/.cursor/
+/.claude/settings.local.json
+
+# Editors and operating systems
+/.idea/
+/.nova/
+/.vscode/
+/.zed/
+.DS_Store
+Thumbs.db
+
+# Legacy local environments
+Homestead.json
+Homestead.yaml
