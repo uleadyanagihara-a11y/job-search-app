@@ -10,9 +10,9 @@ Laravel、Inertia.js、Vue 3、Viteで構成した求人検索アプリケーシ
 - PHP 8.5（Sailランタイム）
 - Inertia.js 2 / Vue 3
 - Vite 8 / Tailwind CSS 3
-- MySQL 8.4
-- Redis
-- Mailpit
+- MySQL 8.4.11
+- Redis 8.10.0
+- Mailpit 1.30.6
 
 ## 前提条件
 
@@ -51,6 +51,13 @@ cp .env.example .env
 APP_URL=http://localhost:8080
 APP_PORT=8080
 VITE_PORT=5174
+
+WWWUSER=1000
+WWWGROUP=1000
+
+MYSQL_VERSION=8.4.11
+REDIS_VERSION=8.10.0-alpine
+MAILPIT_VERSION=v1.30.6
 
 DB_CONNECTION=mysql
 DB_HOST=mysql
@@ -103,14 +110,24 @@ id -g
 ./vendor/bin/sail npm run dev
 ```
 
-終了時はコンテナを停止します。MySQLとRedisの名前付きボリュームは保持されます。
+終了時はコンテナを停止します。MySQL、Redis、Mailpitの名前付きボリュームは保持されます。
 
 ```bash
 ./vendor/bin/sail stop
 ```
 
 > [!CAUTION]
-> `./vendor/bin/sail down -v`はMySQLとRedisのローカルデータも削除します。保存済みデータが不要だと確認できた場合にだけ実行してください。
+> `./vendor/bin/sail down -v`はMySQL、Redis、Mailpitのローカルデータも削除します。保存済みデータが不要だと確認できた場合にだけ実行してください。
+
+## Compose構成
+
+`compose.yaml`は次の方針で構成しています。
+
+- `laravel.test`、`mysql`、`redis`、`mailpit`を専用の`bridge`ネットワーク`sail`へ接続
+- MySQL、Redis、Mailpitのデータを名前付きボリュームへ保存
+- 接続先、認証情報、ホスト側ポート、イメージバージョンを環境変数で管理
+- MySQL、Redis、Mailpitのヘルスチェックが成功してから`laravel.test`を起動
+- MySQL、Redis、Mailpitのイメージをパッチバージョンまで固定
 
 ## URLとポート
 
@@ -130,8 +147,20 @@ Laravelコンテナから各サービスへ接続するときは、MySQLに`mysq
 ## よく使うコマンド
 
 ```bash
+# 起動（依存サービスのヘルスチェック完了まで待機）
+./vendor/bin/sail up -d --wait
+
 # コンテナ状態
 ./vendor/bin/sail ps
+
+# 全サービスの直近100行のログ
+./vendor/bin/sail logs --tail=100 laravel.test mysql redis mailpit
+
+# 全サービスのログを継続表示（Ctrl+Cで表示だけを終了）
+./vendor/bin/sail logs -f laravel.test mysql redis mailpit
+
+# 停止（コンテナと名前付きボリュームは保持）
+./vendor/bin/sail stop
 
 # Laravel CLI
 ./vendor/bin/sail artisan about
@@ -151,8 +180,6 @@ Laravelコンテナから各サービスへ接続するときは、MySQLに`mysq
 ./vendor/bin/sail npm run dev
 ./vendor/bin/sail npm run build
 
-# ログ
-./vendor/bin/sail logs -f laravel.test
 ```
 
 ホスト側では`php artisan`、`composer`、`npm`、`php`を直接実行しません。PHPスクリプトを実行する場合も、次のようにSailを経由します。
