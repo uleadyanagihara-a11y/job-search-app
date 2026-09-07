@@ -214,6 +214,28 @@ Laravelコンテナから各サービスへ接続するときは、MySQLに`mysq
 ./vendor/bin/sail npm run build
 ```
 
+## Redis動作確認
+
+Laravel から Redis へ接続し、通常キーの書き込み・取得・削除と、TTL 付きキーの期限切れをまとめて確認できます。`--ttl`には期限切れまでの秒数（1〜300）を指定します。
+
+```bash
+./vendor/bin/sail artisan redis:verify --ttl=2
+```
+
+コマンドは次の順で検証し、途中で期待と異なる結果になった場合は終了コード`1`で失敗します。
+
+1. Redis へ接続してキーを`SET`
+2. 同じキーを`GET`し、値が一致することを確認
+3. キーを`DELETE`し、その後の`GET`が`nil`になることを確認
+4. `SETEX`でTTL付きキーを作成し、残りTTLが設定されていることを確認
+5. 指定秒数の経過後、キーの取得結果が`nil`、TTLが`-2`（キーなし）になることを確認
+
+この動作を実 Redis に対する結合テストでも確認します。
+
+```bash
+./vendor/bin/sail artisan test --filter=RedisVerificationTest
+```
+
 ## トラブルシューティング
 
 ### `Docker or Podman is not running`と表示される
