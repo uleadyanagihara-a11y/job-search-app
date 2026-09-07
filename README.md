@@ -10,6 +10,7 @@ Laravel、Inertia.js、Vue 3、Viteで構成した求人検索アプリケーシ
 - PHP 8.5（Sailランタイム）
 - Inertia.js 2 / Vue 3
 - Vite 8 / Tailwind CSS 3
+- Nginx 1.28.0
 - MySQL 8.4.11
 - Redis 8.10.0
 - Mailpit 1.30.6
@@ -58,6 +59,7 @@ WWWGROUP=1000
 MYSQL_VERSION=8.4.11
 REDIS_VERSION=8.10.0-alpine
 MAILPIT_VERSION=v1.30.6
+NGINX_VERSION=1.28.0-alpine
 
 DB_CONNECTION=mysql
 DB_HOST=mysql
@@ -123,11 +125,21 @@ id -g
 
 `compose.yaml`は次の方針で構成しています。
 
-- `laravel.test`、`mysql`、`redis`、`mailpit`を専用の`bridge`ネットワーク`sail`へ接続
+- ホストの`APP_PORT`はNginxだけが公開し、Webアクセスの入口をNginxへ統一
+- NginxはGit管理された[`docker/nginx/default.conf`](docker/nginx/default.conf)を使用し、`laravel.test:80`へリクエストを転送
+- `nginx`、`laravel.test`、`mysql`、`redis`、`mailpit`を専用の`bridge`ネットワーク`sail`へ接続
 - MySQL、Redis、Mailpitのデータを名前付きボリュームへ保存
 - 接続先、認証情報、ホスト側ポート、イメージバージョンを環境変数で管理
-- MySQL、Redis、Mailpitのヘルスチェックが成功してから`laravel.test`を起動
-- MySQL、Redis、Mailpitのイメージをパッチバージョンまで固定
+- MySQL、Redis、Mailpitのヘルスチェックが成功してから`laravel.test`を起動し、Laravelのヘルスチェック成功後にNginxを起動
+- Nginx、MySQL、Redis、Mailpitのイメージをバージョン固定
+
+Webリクエストは次の経路でLaravelへ到達します。
+
+```text
+ブラウザ -> localhost:${APP_PORT} -> nginx:80 -> laravel.test:80
+```
+
+`laravel.test`のHTTPポートはホストへ公開していないため、ブラウザからLaravelへ直接アクセスする経路はありません。Viteの開発サーバーだけは、ホットリロードのため`VITE_PORT`をホストへ公開します。
 
 ## URLとポート
 
@@ -135,7 +147,7 @@ id -g
 
 | サービス | URLまたはホスト側ポート |
 | --- | --- |
-| Laravel | http://localhost:8080 |
+| Webアプリ（Nginx経由） | http://localhost:8080 |
 | Vite | http://localhost:5174 |
 | MySQL | `127.0.0.1:3308` |
 | Redis | `127.0.0.1:6380` |
@@ -154,10 +166,10 @@ Laravelコンテナから各サービスへ接続するときは、MySQLに`mysq
 ./vendor/bin/sail ps
 
 # 全サービスの直近100行のログ
-./vendor/bin/sail logs --tail=100 laravel.test mysql redis mailpit
+./vendor/bin/sail logs --tail=100 nginx laravel.test mysql redis mailpit
 
 # 全サービスのログを継続表示（Ctrl+Cで表示だけを終了）
-./vendor/bin/sail logs -f laravel.test mysql redis mailpit
+./vendor/bin/sail logs -f nginx laravel.test mysql redis mailpit
 
 # 停止（コンテナと名前付きボリュームは保持）
 ./vendor/bin/sail stop
@@ -226,7 +238,7 @@ FORWARD_MAILPIT_PORT=1027
 FORWARD_MAILPIT_DASHBOARD_PORT=8027
 ```
 
-上記は変更例です。Laravelのポートを変更する場合は、`APP_PORT`に合わせて`APP_URL`も同じURLへ変更してください。
+上記は変更例です。Nginxの公開ポートを変更する場合は、`APP_PORT`に合わせて`APP_URL`も同じURLへ変更してください。
 
 ### 設定変更が反映されない
 
