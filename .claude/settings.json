@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./vendor/bin/sail mysql *)",
+      "Bash(./vendor/bin/sail test *)",
+      "Bash(curl -s http://localhost:8026/api/v1/messages)",
+      "Bash(curl -s http://localhost:8026/api/v1/info)",
+      "Bash(./vendor/bin/sail pint *)",
+      "Bash(python3 -c 'import sys,json;m=json.load\\(sys.stdin\\);print\\(\"From:\",m[\"From\"]\\);print\\(\"To:\",m[\"To\"]\\);print\\(\"Subject:\",m[\"Subject\"]\\);print\\(\"---HTML body---\"\\);print\\(m[\"HTML\"]\\)')"
+    ]
+  }
+}
