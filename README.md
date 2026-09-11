@@ -52,6 +52,7 @@ cp .env.example .env
 APP_URL=http://localhost:8080
 APP_PORT=8080
 VITE_PORT=5174
+APP_TIMEZONE=Asia/Tokyo
 
 WWWUSER=1000
 WWWGROUP=1000
@@ -67,6 +68,8 @@ DB_PORT=3306
 DB_DATABASE=job_search_app
 DB_USERNAME=sail
 DB_PASSWORD=password
+DB_CHARSET=utf8mb4
+DB_COLLATION=utf8mb4_0900_ai_ci
 FORWARD_DB_PORT=3308
 
 REDIS_HOST=redis
@@ -97,6 +100,23 @@ id -g
 ./vendor/bin/sail npm ci
 ./vendor/bin/sail npm run build
 ```
+
+### データベースの文字コードとタイムゾーン
+
+- 文字コード / 照合順序は `utf8mb4` / `utf8mb4_0900_ai_ci`（MySQL 8.4 のデフォルトと一致）に統一。
+  アプリ側は `.env` の `DB_CHARSET` / `DB_COLLATION`、サーバ側は `compose.yaml` の mysql
+  `command`（`--character-set-server` / `--collation-server`）で指定します。
+- タイムゾーンは日本時間に統一しています。アプリ側は `.env` の `APP_TIMEZONE=Asia/Tokyo`、
+  MySQL 側は `compose.yaml` の mysql `command` の `--default-time-zone=+09:00` です。
+- `command` の変更を反映するにはコンテナの再作成（`./vendor/bin/sail up -d`）が必要です。
+  `./vendor/bin/sail restart` では反映されません（既存コンテナをそのまま再起動するだけのため）。
+- 照合順序の設定（`DB_COLLATION`）を変更しても既存テーブルは遡って変わりません。
+  変更後は `./vendor/bin/sail artisan migrate:fresh` を実行します（初回セットアップ時は不要）。
+- `sail down` ではデータは消えません（名前付きボリュームに残る）。消えるのは `sail down -v` のみです。
+  ただし `.env` の `DB_DATABASE` / `DB_USERNAME` / `DB_PASSWORD` は MySQL の初回初期化時
+  （ボリュームが空のとき）にしか反映されません。既存ボリュームがある状態で変更しても
+  MySQL 側には反映されないため、変更する場合は `./vendor/bin/sail down -v` でボリュームごと
+  作り直すか、SQL で手動反映してください。
 
 ## 日常の開発
 

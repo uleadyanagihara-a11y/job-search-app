@@ -54,6 +54,13 @@ services:
             start_period: 5s
     mysql:
         image: 'mysql:${MYSQL_VERSION:-8.4.11}'
+        # サーバ起動フラグ。永続ボリュームの有無に関係なく毎回適用される
+        # （initdb スクリプトと違い datadir 初期化とは無関係）。
+        # 変更を反映するにはコンテナ再作成（./vendor/bin/sail up -d）が必要。restart では不可。
+        command:
+            - '--default-time-zone=+09:00'
+            - '--character-set-server=utf8mb4'
+            - '--collation-server=utf8mb4_0900_ai_ci'
         ports:
             - '${FORWARD_DB_PORT:-3306}:3306'
         environment:
