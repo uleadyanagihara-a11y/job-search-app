@@ -1,8 +1,14 @@
 <?php
 
+use App\Http\Middleware\Api\EnsureApiEmailIsVerified;
+use App\Http\Middleware\Api\EnsureApiGuest;
+use App\Http\Middleware\Api\EnsureApiPasswordIsConfirmed;
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Support\Api\ApiExceptionRenderer;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -19,9 +25,15 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->statefulApi();
 
+        $middleware->alias([
+            'api.guest' => EnsureApiGuest::class,
+            'api.verified' => EnsureApiEmailIsVerified::class,
+            'api.password.confirm' => EnsureApiPasswordIsConfirmed::class,
+        ]);
+
         $middleware->web(append: [
-            \App\Http\Middleware\HandleInertiaRequests::class,
-            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            HandleInertiaRequests::class,
+            AddLinkHeadersForPreloadedAssets::class,
         ]);
 
         //
@@ -30,4 +42,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // API route の例外は docs/inertia-removal-migration.md §5.1/§5.5 の
+        // JSON error contract に統一する。web(Inertia) route には手を出さない。
+        $exceptions->render(function (Throwable $e, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return ApiExceptionRenderer::render($e);
+        });
     })->create();
