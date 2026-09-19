@@ -3,8 +3,10 @@
 namespace Tests\Feature\Api;
 
 use App\Models\User;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
@@ -67,6 +69,24 @@ class PasswordResetTest extends TestCase
         ])->assertOk()->assertJson(['code' => 'password_reset']);
 
         $this->assertTrue(Hash::check('new-password', $user->fresh()->password));
+    }
+
+    public function test_reset_rotates_the_remember_token_and_dispatches_event(): void
+    {
+        Event::fake([PasswordReset::class]);
+        $user = User::factory()->create(['remember_token' => 'old-remember-token']);
+
+        $this->fromFrontend()->postJson('/api/auth/reset-password', [
+            'token' => Password::createToken($user),
+            'email' => $user->email,
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ])->assertOk();
+
+        $token = $user->fresh()->remember_token;
+        $this->assertNotSame('old-remember-token', $token);
+        $this->assertSame(60, strlen($token));
+        Event::assertDispatched(PasswordReset::class);
     }
 
     public function test_reset_with_invalid_token_returns_token_error(): void
