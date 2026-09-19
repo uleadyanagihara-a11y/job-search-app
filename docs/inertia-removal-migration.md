@@ -411,11 +411,13 @@ validation 以外の error は次の形式とする。production response に例
 | `403` | `email_unverified` | email verification が必要 |
 | `423` | `password_confirmation_required` | password 再確認が必要。Laravel標準`RequirePassword`に合わせる |
 | `404` | `not_found` | resource なし |
+| `405` | `method_not_allowed` | 許可されないHTTPメソッド。`Allow` header も返す |
 | `409` | `conflict` | 状態競合、重複操作 |
 | `409` | `already_authenticated` | guest専用APIを認証済みuserが実行 |
 | `419` | `csrf_token_mismatch` | CSRF token 不正/期限切れ |
 | `422` | `validation_failed` | FormRequest/validator failure |
 | `429` | `rate_limited` | throttle。`Retry-After` header も返す |
+| 上記以外の `4xx` | `client_error` | 表にない client error。元の status を保つ |
 | `500` | `internal_error` | 想定外 error |
 | `503` | `service_unavailable` | 一時的な利用不能 |
 
