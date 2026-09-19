@@ -3,8 +3,10 @@
 namespace Tests\Feature\Api;
 
 use App\Models\User;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -35,6 +37,20 @@ class RegistrationTest extends TestCase
         ]);
         $this->assertAuthenticated();
         Notification::assertSentTo(User::first(), VerifyEmail::class);
+    }
+
+    public function test_registered_event_is_dispatched(): void
+    {
+        Event::fake([Registered::class]);
+
+        $this->fromFrontend()->postJson('/api/auth/register', [
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ])->assertStatus(201);
+
+        Event::assertDispatched(Registered::class, fn (Registered $e) => $e->user->email === 'test@example.com');
     }
 
     public function test_registration_validates_input(): void
