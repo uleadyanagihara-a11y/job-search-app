@@ -1,10 +1,14 @@
 <?php
 
 use App\Http\Controllers\Api\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Api\Auth\RegisteredUserController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/user', [UserController::class, 'show'])->middleware('auth:sanctum');
+
+Route::post('/auth/register', [RegisteredUserController::class, 'store'])
+    ->middleware(['api.guest', 'throttle:6,1']);
 
 Route::post('/auth/login', [AuthenticatedSessionController::class, 'store'])
     ->middleware('api.guest');
