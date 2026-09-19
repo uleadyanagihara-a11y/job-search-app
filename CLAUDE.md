@@ -84,6 +84,20 @@ git はホストでネイティブに動く（Sail は不要）。
   スタブに含まれておらず未使用の import になっていたため削除済み（axios は不使用）。
   Breeze を再インストール/上書きする際は再発する可能性がある。
 
+## CI（GitHub Actions）
+
+`.github/workflows/ci.yml` で Pint / Laravel テスト（MySQL 8.4 + Redis）/ Vite build を実行する。
+CI は **git 管理外のファイルが無いクリーンな checkout** で動くため、ローカルで通っても落ちることがある。
+
+- テストは実 Redis に接続する（`RedisVerificationTest`）。CI では `services:` で Redis を起動している。
+- Inertia の画面を描画するテストは `public/build/manifest.json` が必要。CI の test ジョブで先に `npm run build` している
+  （Inertia 撤去後、画面系テストが無くなればこの工程は不要）。
+- `resources/js/app.js` が `vendor/tightenco/ziggy` を import するため、build 前に `composer install` が必要。
+- MySQL は `services:` だと起動フラグを渡せないため `docker run` で起動し、compose.yaml と同じ
+  文字コード・照合順序・タイムゾーンを指定している。
+- テストやビルド手順を足すときは、`vendor/` `node_modules/` `public/build/` などが無い状態
+  （`git worktree add` 等）でも通るか確認する。
+
 ## コーディング規約
 
 まだ規約を固めるだけのドメインコードが無いため未記載。機能追加時に
