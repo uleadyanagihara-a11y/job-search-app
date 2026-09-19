@@ -8,7 +8,12 @@ use Illuminate\Http\Request;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Tests\TestCase;
 
@@ -90,6 +95,60 @@ class ApiExceptionRenderingTest extends TestCase
         $this->assertSame(429, $response->getStatusCode());
         $this->assertSame('rate_limited', $body['code']);
         $this->assertEquals('30', $response->headers->get('Retry-After'));
+    }
+
+    public function test_documented_http_statuses_keep_their_status_and_code(): void
+    {
+        $handler = app(ExceptionHandler::class);
+
+        $cases = [
+            [new BadRequestHttpException, 400, 'bad_request'],
+            [new ConflictHttpException, 409, 'conflict'],
+            [new ServiceUnavailableHttpException(10), 503, 'service_unavailable'],
+        ];
+
+        foreach ($cases as [$exception, $status, $code]) {
+            $response = $handler->render($this->apiRequest(), $exception);
+
+            $this->assertSame($status, $response->getStatusCode());
+            $this->assertSame($code, json_decode($response->getContent(), true)['code']);
+        }
+    }
+
+    public function test_service_unavailable_keeps_retry_after_header(): void
+    {
+        $response = app(ExceptionHandler::class)
+            ->render($this->apiRequest(), new ServiceUnavailableHttpException(10));
+
+        $this->assertEquals('10', $response->headers->get('Retry-After'));
+    }
+
+    public function test_method_not_allowed_has_dedicated_code_and_allow_header(): void
+    {
+        $response = app(ExceptionHandler::class)
+            ->render($this->apiRequest(), new MethodNotAllowedHttpException(['GET', 'HEAD']));
+
+        $this->assertSame(405, $response->getStatusCode());
+        $this->assertSame('method_not_allowed', json_decode($response->getContent(), true)['code']);
+        $this->assertSame('GET, HEAD', $response->headers->get('Allow'));
+    }
+
+    public function test_unlisted_4xx_keeps_status_with_generic_client_error_code(): void
+    {
+        $response = app(ExceptionHandler::class)
+            ->render($this->apiRequest(), new HttpException(415));
+
+        $this->assertSame(415, $response->getStatusCode());
+        $this->assertSame('client_error', json_decode($response->getContent(), true)['code']);
+    }
+
+    public function test_unlisted_5xx_falls_back_to_internal_error(): void
+    {
+        $response = app(ExceptionHandler::class)
+            ->render($this->apiRequest(), new HttpException(502));
+
+        $this->assertSame(500, $response->getStatusCode());
+        $this->assertSame('internal_error', json_decode($response->getContent(), true)['code']);
     }
 
     public function test_unexpected_exception_is_rendered_without_leaking_internal_details(): void
