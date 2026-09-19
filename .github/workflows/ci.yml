@@ -48,6 +48,20 @@ jobs:
       DB_PASSWORD: password
       DB_CHARSET: utf8mb4
       DB_COLLATION: utf8mb4_0900_ai_ci
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+    services:
+      # RedisVerificationTest が実際の Redis に接続する（compose.yaml と同じタグ）
+      redis:
+        image: redis:8.10.0-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -74,7 +88,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          extensions: pdo_mysql
+          extensions: pdo_mysql, redis
           coverage: none
 
       - name: Install Composer dependencies
@@ -88,6 +102,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # resources/js/app.js が vendor/tightenco/ziggy を import するため vendor が必要
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
 
       - uses: actions/setup-node@v4
         with:
