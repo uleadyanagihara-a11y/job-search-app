@@ -10,11 +10,6 @@ class PasswordConfirmationTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function fromFrontend(): TestCase
-    {
-        return $this->withHeader('Referer', config('app.url'));
-    }
-
     public function test_password_can_be_confirmed(): void
     {
         $user = User::factory()->create();

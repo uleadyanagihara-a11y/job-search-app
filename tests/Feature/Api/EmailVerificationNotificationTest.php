@@ -12,11 +12,6 @@ class EmailVerificationNotificationTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function fromFrontend(): TestCase
-    {
-        return $this->withHeader('Referer', config('app.url'));
-    }
-
     public function test_verification_notification_can_be_resent(): void
     {
         Notification::fake();

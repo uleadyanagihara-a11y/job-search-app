@@ -16,11 +16,6 @@ class PasswordResetTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function fromFrontend(): TestCase
-    {
-        return $this->withHeader('Referer', config('app.url'));
-    }
-
     public function test_reset_link_is_sent_with_spa_url(): void
     {
         Notification::fake();

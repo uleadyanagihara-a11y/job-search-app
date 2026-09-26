@@ -14,11 +14,6 @@ class RegistrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function fromFrontend(): TestCase
-    {
-        return $this->withHeader('Referer', config('app.url'));
-    }
-
     public function test_users_can_register(): void
     {
         Notification::fake();

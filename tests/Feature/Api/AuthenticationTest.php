@@ -10,16 +10,6 @@ class AuthenticationTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * SanctumはReferer/Originがsanctum.statefulに一致するリクエストだけを
-     * 「frontend」として扱い、session middlewareを有効化する。login/logoutは
-     * sessionを書き換えるため、SPAからのリクエストを模してヘッダーを付与する。
-     */
-    private function fromFrontend(): TestCase
-    {
-        return $this->withHeader('Referer', config('app.url'));
-    }
-
     public function test_users_can_authenticate_via_the_api(): void
     {
         $user = User::factory()->create();
