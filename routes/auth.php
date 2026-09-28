@@ -39,10 +39,6 @@ Route::middleware('auth')->group(function () {
     Route::get('verify-email', EmailVerificationPromptController::class)
         ->name('verification.notice');
 
-    Route::get('verify-email/{id}/{hash}', VerifyEmailController::class)
-        ->middleware(['signed', 'throttle:6,1'])
-        ->name('verification.verify');
-
     Route::post('email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
         ->middleware('throttle:6,1')
         ->name('verification.send');
@@ -57,3 +53,11 @@ Route::middleware('auth')->group(function () {
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
 });
+
+// auth グループ外に定義: group の middleware は route 個別の middleware より必ず先に
+// 実行される仕様のため、throttle を先頭にするにはグループに入れられない。
+// throttle を先頭に置くのは、signed/auth で弾かれるリクエスト（署名総当たり・未ログイン
+// アクセス）もレート制限の対象にするため。
+Route::get('verify-email/{id}/{hash}', VerifyEmailController::class)
+    ->middleware(['throttle:6,1', 'signed', 'auth'])
+    ->name('verification.verify');
