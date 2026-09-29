@@ -457,6 +457,8 @@ validation 以外の error は次の形式とする。production response に例
 - message response の成功 code は `password_reset_link_sent`, `password_reset`, `verification_link_sent` のようにユースケース単位で固定する。
 - password reset mail の URL は Laravel の画面 route に依存させず、SPA の `/reset-password/{token}?email=...` を生成する。
 - email verification は API に含めず、後述する署名付き Web コールバックを利用する。
+- password 更新（`PUT /api/profile/password`）は password reset と同様に `remember_token` を再生成し、他端末に残る remember cookie による再ログインを無効化する。
+- 他端末の有効な session は `AuthenticateSession` で無効化する。session に保存した `password_hash_web` と現在の password hash が一致しない request は、API（Sanctum の `authenticate_session`）では `401 unauthenticated`、web group（`authenticateSessions()` による `auth.session`）では login へ redirect になる。変更した端末の session は同じ request の終了時に新しい hash へ更新されるため残る。password 自体が変わり hash も変わるため、`Auth::logoutOtherDevices()` は呼ばない。
 - password reset mail request は user の存在有無にかかわらず同じ `200`, `code`, 汎用 `message` を返し、account enumeration を防ぐ。
 - 未認証は `401`、認証済みだが権限不足は `403` とする。email 未確認や password 再確認が必要な場合は、Vue が遷移先を判断できる安定した error code も返す。
 - flash session props は API response の `message` と Vue の local/router state に置き換える。

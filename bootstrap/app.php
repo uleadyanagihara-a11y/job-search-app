@@ -25,6 +25,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->statefulApi();
 
+        // password 変更時に他端末の session を無効化する。API（stateful）側は Sanctum の
+        // `sanctum.middleware.authenticate_session` が担当するため、web group にだけ
+        // `auth.session` を追加する。どちらも session の `password_hash_web` を照合する。
+        $middleware->authenticateSessions();
+
         $middleware->alias([
             'api.guest' => EnsureApiGuest::class,
             'api.verified' => EnsureApiEmailIsVerified::class,
