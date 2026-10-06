@@ -106,7 +106,7 @@ Phase 2 以降で API test に置き換える際、ここに列挙した「振�
 
 | test | 現在の振る舞い | 置換後の API 契約 |
 | --- | --- | --- |
-| `test_password_can_be_updated` | 正しい `current_password` で `PUT /password` → password 更新 | `PUT /api/profile/password` → `204`。`current_password` 検証ロジックは不変 |
+| `test_password_can_be_updated` | 正しい `current_password` で `PUT /password` → password 更新 | `PUT /api/profile/password` → `204`。`current_password` 検証ロジックは不変。加えて `remember_token` を再生成し、他端末の remember ログインを無効化する（旧 web 版には無い挙動） |
 | `test_correct_password_must_be_provided_to_update_password` | 誤 `current_password` で `PUT /password` → `current_password` field error | `422 validation_failed` + `errors.current_password` |
 
 ### [tests/Feature/Auth/PasswordConfirmationTest.php](../tests/Feature/Auth/PasswordConfirmationTest.php)
