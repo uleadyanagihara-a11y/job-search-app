@@ -447,7 +447,7 @@ validation 以外の error は次の形式とする。production response に例
 | `POST /api/auth/reset-password` | `api.guest`, throttle | `200 { code, message }` | login 画面へ移動し message を渡す |
 | `POST /api/auth/email/verification-notification` | `auth:sanctum`/throttle | `200 { code, message }` | 同じ画面に message を表示 |
 | `POST /api/auth/confirm-password` | `auth:sanctum` | `204` | 保存した intended SPA URL へ |
-| `GET /api/profile` | `auth:sanctum` | `200 { data, meta }` | profile form 初期化 |
+| `GET /api/profile` | `auth:sanctum` | `200 { data: user }` | profile form 初期化。email 確認要否は `email_verified_at === null` で判定 |
 | `PATCH /api/profile` | `auth:sanctum` | `200 { data: user }` | auth store も同じ user で更新 |
 | `PUT /api/profile/password` | `auth:sanctum` | `204` | form reset + success 表示 |
 | `DELETE /api/profile` | `auth:sanctum` | `204` | auth store 破棄後 `/` へ |
@@ -798,7 +798,7 @@ backend と frontend の dependency cache key、working directory、失敗判定
 
 ### データ取得
 
-page props を廃止し、画面に必要な時点で API を呼ぶ。global `auth.user` は auth store、profile 固有の `mustVerifyEmail` 等は profile response の `meta` に置く。`canLogin`/`canRegister` のような UI feature flag は frontend config または公開 config endpoint に移す。
+page props を廃止し、画面に必要な時点で API を呼ぶ。global `auth.user` は auth store に置く。旧 `mustVerifyEmail` prop は API に持ち込まず、user の `email_verified_at === null` から SPA 側で導出する（docs/phase0-api-contract.md §0.3）。`canLogin`/`canRegister` のような UI feature flag は frontend config または公開 config endpoint に移す。
 
 ### 送信
 
