@@ -411,13 +411,11 @@ validation 以外の error は次の形式とする。production response に例
 | `403` | `email_unverified` | email verification が必要 |
 | `423` | `password_confirmation_required` | password 再確認が必要。Laravel標準`RequirePassword`に合わせる |
 | `404` | `not_found` | resource なし |
-| `405` | `method_not_allowed` | 許可されないHTTPメソッド。`Allow` header も返す |
 | `409` | `conflict` | 状態競合、重複操作 |
 | `409` | `already_authenticated` | guest専用APIを認証済みuserが実行 |
 | `419` | `csrf_token_mismatch` | CSRF token 不正/期限切れ |
 | `422` | `validation_failed` | FormRequest/validator failure |
 | `429` | `rate_limited` | throttle。`Retry-After` header も返す |
-| 上記以外の `4xx` | `client_error` | 表にない client error。元の status を保つ |
 | `500` | `internal_error` | 想定外 error |
 | `503` | `service_unavailable` | 一時的な利用不能 |
 
@@ -447,7 +445,7 @@ validation 以外の error は次の形式とする。production response に例
 | `POST /api/auth/reset-password` | `api.guest`, throttle | `200 { code, message }` | login 画面へ移動し message を渡す |
 | `POST /api/auth/email/verification-notification` | `auth:sanctum`/throttle | `200 { code, message }` | 同じ画面に message を表示 |
 | `POST /api/auth/confirm-password` | `auth:sanctum` | `204` | 保存した intended SPA URL へ |
-| `GET /api/profile` | `auth:sanctum` | `200 { data: user }` | profile form 初期化。email 確認要否は `email_verified_at === null` で判定 |
+| `GET /api/profile` | `auth:sanctum` | `200 { data, meta }` | profile form 初期化 |
 | `PATCH /api/profile` | `auth:sanctum` | `200 { data: user }` | auth store も同じ user で更新 |
 | `PUT /api/profile/password` | `auth:sanctum` | `204` | form reset + success 表示 |
 | `DELETE /api/profile` | `auth:sanctum` | `204` | auth store 破棄後 `/` へ |
@@ -457,8 +455,6 @@ validation 以外の error は次の形式とする。production response に例
 - message response の成功 code は `password_reset_link_sent`, `password_reset`, `verification_link_sent` のようにユースケース単位で固定する。
 - password reset mail の URL は Laravel の画面 route に依存させず、SPA の `/reset-password/{token}?email=...` を生成する。
 - email verification は API に含めず、後述する署名付き Web コールバックを利用する。
-- password 更新（`PUT /api/profile/password`）は password reset と同様に `remember_token` を再生成し、他端末に残る remember cookie による再ログインを無効化する。
-- 他端末の有効な session は `AuthenticateSession` で無効化する。session に保存した `password_hash_web` と現在の password hash が一致しない request は、API（Sanctum の `authenticate_session`）では `401 unauthenticated`、web group（`authenticateSessions()` による `auth.session`）では login へ redirect になる。変更した端末の session は同じ request の終了時に新しい hash へ更新されるため残る。password 自体が変わり hash も変わるため、`Auth::logoutOtherDevices()` は呼ばない。
 - password reset mail request は user の存在有無にかかわらず同じ `200`, `code`, 汎用 `message` を返し、account enumeration を防ぐ。
 - 未認証は `401`、認証済みだが権限不足は `403` とする。email 未確認や password 再確認が必要な場合は、Vue が遷移先を判断できる安定した error code も返す。
 - flash session props は API response の `message` と Vue の local/router state に置き換える。
@@ -494,7 +490,8 @@ token/email の漏洩を抑えるため、production は HTTPS を必須とし�
 | --- | --- |
 | callback | `GET /auth/email/verify/{id}/{hash}?expires=...&signature=...` |
 | route group | `web` |
-| middleware | `signed`, `auth`, `throttle:6,1`。署名検証後に session 認証を要求し、対象 user との一致も検証 |
+| middleware | 専用 throttle（`ThrottleEmailVerificationCallback`、IP 単位 6 回/分）→ `signed` → `auth` の順で実行。署名不正・未ログインで弾かれる request も rate limit の対象にし、署名検証後に session 認証を要求し、対象 user との一致も検証。実行順は route の記述順ではなく `bootstrap/app.php` の `$middlewarePriority` 設定で決まる（§5.5.1） |
+| 回数超過 | `${FRONTEND_URL}/verify-email?error=too-many-requests` へ redirect。更新しない |
 | 成功 | email を verified に更新後、`${FRONTEND_URL}/dashboard?verified=1` へ 302 |
 | 期限切れ/署名不正 | `${FRONTEND_URL}/verify-email?error=invalid-or-expired` へ redirect。更新しない |
 | 別 user でログイン済み | `${FRONTEND_URL}/verify-email?error=user-mismatch` へ redirect。更新しない |
@@ -535,7 +532,12 @@ Laravel callback は画面 HTML や Inertia response を返さないため、Lar
 
 Laravel標準の`guest`は認証済みuserへ302 redirectするためAPI routeでは使用しない。標準`verified`と`password.confirm`はstatusの考え方を踏襲するが、安定した`code`を返すAPI専用middlewareに置き換える。認可はPolicy/Gate、入力検証はFormRequestに置き、controllerへ同じ判定を重複させない。
 
-API routeの基本順序は、Sanctum stateful/session/CSRF、route binding、route固有のguest/auth/verified/password-confirm/throttle、FormRequest、controllerとする。署名付きメール認証callbackだけはAPI group外の`web` routeで、`signed`をauth redirectより前に評価する。
+route middlewareの実行順はrouteに書いた順ではなく、Kernelの`$middlewarePriority`による並べ替えで決まる（`route:list -v`の表示も実行順ではない）。一覧にあるmiddlewareは一覧の順に前へ寄せられ、一覧に無いmiddlewareはgroupの後ろに残る。このためAPI routeの実行順は、Sanctum stateful/session/CSRF、`auth:sanctum`、`throttle`、route binding、`api.guest`/`api.verified`/`api.password.confirm`（一覧に無いため最後）、FormRequest、controllerとなる。
+
+- `api.guest`と`throttle`を併用するrouteでは`throttle`が先に動き、`409 already_authenticated`で拒否されるrequestもrate limitを消費する。制限が厳しくなる方向のため許容する。
+- `api.verified`/`api.password.confirm`はroute bindingの後に動く。model bindingを持つ業務APIでbinding（DB検索・`404`）より前に拒否したい場合は、`bootstrap/app.php`で`$middlewarePriority`に追加する。
+
+署名付きメール認証callbackだけはAPI group外の`web` routeで、専用throttle、`signed`、`auth`の順に評価する（§5.4。`bootstrap/app.php`でpriorityに追加して実現）。
 
 #### 5.5.2 endpoint別middleware
 
@@ -800,7 +802,7 @@ backend と frontend の dependency cache key、working directory、失敗判定
 
 ### データ取得
 
-page props を廃止し、画面に必要な時点で API を呼ぶ。global `auth.user` は auth store に置く。旧 `mustVerifyEmail` prop は API に持ち込まず、user の `email_verified_at === null` から SPA 側で導出する（docs/phase0-api-contract.md §0.3）。`canLogin`/`canRegister` のような UI feature flag は frontend config または公開 config endpoint に移す。
+page props を廃止し、画面に必要な時点で API を呼ぶ。global `auth.user` は auth store、profile 固有の `mustVerifyEmail` 等は profile response の `meta` に置く。`canLogin`/`canRegister` のような UI feature flag は frontend config または公開 config endpoint に移す。
 
 ### 送信
 
