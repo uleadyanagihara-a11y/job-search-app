@@ -7,6 +7,7 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -27,6 +28,8 @@ class AppServiceProvider extends ServiceProvider
     {
         Vite::prefetch(concurrency: 3);
 
+        $this->forceApplicationUrl();
+
         // reset mail は Laravel の画面 route ではなく SPA の URL へ向ける（§5.3）。
         ResetPassword::createUrlUsing(fn ($user, string $token) => FrontendUrl::to(
             '/reset-password/'.$token,
@@ -34,6 +37,22 @@ class AppServiceProvider extends ServiceProvider
         ));
 
         $this->configureRateLimiting();
+    }
+
+    /**
+     * 生成する URL の host/scheme を APP_URL に固定する（host header poisoning 対策）。
+     *
+     * Nginx は client の Host を X-Forwarded-Host に転送し、trustProxies('*') がそれを信用する。
+     * 固定しないと、メール認証リンク等が request の Host / X-Forwarded-Host / X-Forwarded-Proto
+     * から作られ、攻撃者の指定した host を指す正規のメールを送れてしまう。
+     * 受信側（signed の検証）は request の URL を使うため、この設定の影響を受けない。
+     */
+    private function forceApplicationUrl(): void
+    {
+        $appUrl = (string) config('app.url');
+
+        URL::forceRootUrl($appUrl);
+        URL::forceScheme(parse_url($appUrl, PHP_URL_SCHEME) ?: 'http');
     }
 
     /**
