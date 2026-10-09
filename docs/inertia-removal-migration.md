@@ -528,10 +528,12 @@ Laravel callback は画面 HTML や Inertia response を返さないため、Lar
 | --- | --- | --- |
 | `api.guest` | 認証済みuserによるguest専用操作を拒否 | `409 already_authenticated` |
 | `auth:sanctum` | Sanctumによるsession認証 | `401 unauthenticated` |
-| `api.verified` | `MustVerifyEmail`対象userのverificationを要求 | `403 email_unverified` |
+| `api.verified` | `MustVerifyEmail`対象userのverificationを要求 | `403 email_unverified`（userが無い場合は`401 unauthenticated`） |
 | `api.password.confirm` | sessionのpassword確認時刻を検証 | `423 password_confirmation_required` |
 
 Laravel標準の`guest`は認証済みuserへ302 redirectするためAPI routeでは使用しない。標準`verified`と`password.confirm`はstatusの考え方を踏襲するが、安定した`code`を返すAPI専用middlewareに置き換える。認可はPolicy/Gate、入力検証はFormRequestに置き、controllerへ同じ判定を重複させない。
+
+`api.verified`は`auth:sanctum`と併用する前提だが、routeへ`auth:sanctum`を付け忘れても未ログインのrequestを素通ししないよう、userが無い場合は`401 unauthenticated`を返す（標準`verified`もuser無しは拒否する）。このため、未ログインでも閲覧できるroute（求人一覧など）には付けない。verificationの有無で表示だけを変えるrouteは、controller/Policy側で`hasVerifiedEmail()`を判定する。
 
 route middlewareの実行順はrouteに書いた順ではなく、Kernelの`$middlewarePriority`による並べ替えで決まる（`route:list -v`の表示も実行順ではない）。一覧にあるmiddlewareは一覧の順に前へ寄せられ、一覧に無いmiddlewareはgroupの後ろに残る。このためAPI routeの実行順は、Sanctum stateful/session/CSRF、`auth:sanctum`、`throttle`、route binding、`api.guest`/`api.verified`/`api.password.confirm`（一覧に無いため最後）、FormRequest、controllerとなる。
 
