@@ -171,7 +171,8 @@ migration doc の §5.3（password reset）と §5.4（email verification）を�
 
 | 項目 | 現状 | 確定した契約 |
 | --- | --- | --- |
-| callback URL | `GET /verify-email/{id}/{hash}` + `signed`, `auth`, `throttle:6,1` | 変更なし。`web` route として維持する唯一の画面系 route |
+| callback URL | `GET /verify-email/{id}/{hash}` + `signed`, `auth`, `throttle:6,1` | `GET /auth/email/verify/{id}/{hash}`（§5.4 に合わせて path を変更。SPA の `/verify-email` と prefix を分けるため）。route 名 `verification.verify` は維持。`web` route として維持する唯一の画面系 route |
+| 回数超過 | 標準の 429 | `${FRONTEND_URL}/verify-email?error=too-many-requests` へ redirect（Phase 2 で追加決定） |
 | 成功時 | `redirect()->intended(route('dashboard', absolute: false).'?verified=1')` | `${FRONTEND_URL}/dashboard?verified=1` へ 302 に変更（Phase 2） |
 | 未ログイン時 | 現状は `auth` middleware が Laravel の `login` route（Inertia 画面）へ redirect | intended URL を session に保存した上で `${FRONTEND_URL}/login?verification_required=1` へ redirect するよう変更（Phase 2） |
 | 署名不正/期限切れ | 現状は Laravel 標準の 403（`InvalidSignatureException`） | `${FRONTEND_URL}/verify-email?error=invalid-or-expired` へ redirect するよう変更（Phase 2） |

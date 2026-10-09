@@ -32,6 +32,47 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_login_returns_intended_verification_callback_as_relative_redirect_to(): void
+    {
+        $user = User::factory()->create();
+        $intended = rtrim(config('app.url'), '/').'/auth/email/verify/1/abc?expires=1&signature=xyz';
+
+        $response = $this->fromFrontend()
+            ->withSession(['url.intended' => $intended])
+            ->postJson('/api/auth/login', [
+                'email' => $user->email,
+                'password' => 'password',
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('meta.redirect_to', '/auth/email/verify/1/abc?expires=1&signature=xyz');
+        $response->assertSessionMissing('url.intended');
+    }
+
+    public function test_login_ignores_intended_url_outside_verification_callback(): void
+    {
+        foreach ([
+            'https://evil.example.test/dashboard',
+            'https://evil.example.test/auth/email/verify-evil',
+            rtrim(config('app.url'), '/').'/profile',
+        ] as $intended) {
+            $user = User::factory()->create();
+
+            $response = $this->fromFrontend()
+                ->withSession(['url.intended' => $intended])
+                ->postJson('/api/auth/login', [
+                    'email' => $user->email,
+                    'password' => 'password',
+                ]);
+
+            $response->assertOk();
+            $response->assertJsonPath('meta.redirect_to', '/dashboard');
+            $response->assertSessionMissing('url.intended');
+
+            $this->app['auth']->guard('web')->logout();
+        }
+    }
+
     public function test_users_can_not_authenticate_with_an_invalid_password(): void
     {
         $user = User::factory()->create();
