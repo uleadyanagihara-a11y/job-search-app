@@ -494,6 +494,7 @@ token/email の漏洩を抑えるため、production は HTTPS を必須とし�
 | 回数超過 | `${FRONTEND_URL}/verify-email?error=too-many-requests` へ redirect。更新しない |
 | 成功 | email を verified に更新後、`${FRONTEND_URL}/dashboard?verified=1` へ 302 |
 | 期限切れ/署名不正 | `${FRONTEND_URL}/verify-email?error=invalid-or-expired` へ redirect。更新しない |
+| hash 不一致 | 署名は正しいが `hash` がログイン中 user の現在の email と一致しない（リンク送信後に email を変更した等）。期限切れと同じく `${FRONTEND_URL}/verify-email?error=invalid-or-expired` へ redirect。更新しない。`user-mismatch` は `id` が別 user の場合に限る |
 | 別 user でログイン済み | `${FRONTEND_URL}/verify-email?error=user-mismatch` へ redirect。更新しない |
 | 未ログイン | callback の同一 origin path を session の intended URL に保存し、`${FRONTEND_URL}/login?verification_required=1` へ redirect |
 | login 後 | login API が許可済みの `redirect_to` を返し、Vue が `window.location.assign()` で callback を再実行 |
