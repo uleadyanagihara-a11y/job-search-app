@@ -2,10 +2,13 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Http\Middleware\ThrottleEmailVerificationCallback;
 use App\Models\User;
 use Illuminate\Auth\Events\Verified;
+use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\ValidateSignature;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
@@ -179,6 +182,26 @@ class EmailVerificationTest extends TestCase
         $this->get($verificationUrl)
             ->assertRedirect(self::FRONTEND_URL.'/verify-email?error=too-many-requests');
         $this->assertFalse($user->fresh()->hasVerifiedEmail());
+    }
+
+    public function test_callback_middleware_runs_throttle_then_signed_then_auth(): void
+    {
+        // 実行順は route の記述順ではなく $middlewarePriority で決まり、`route:list -v` にも
+        // 出ないため、並べ替え後の実際の順序を検査する（§5.4/§5.5.1）。
+        // Breeze の上書き等で bootstrap/app.php の priority 設定が消えると落ちる。
+        $router = $this->app['router'];
+        $middleware = $router->gatherRouteMiddleware(
+            $router->getRoutes()->getByName('verification.verify'),
+        );
+
+        $this->assertSame(
+            [ThrottleEmailVerificationCallback::class, ValidateSignature::class, Authenticate::class],
+            array_values(array_intersect($middleware, [
+                ThrottleEmailVerificationCallback::class,
+                ValidateSignature::class,
+                Authenticate::class,
+            ])),
+        );
     }
 
     public function test_guest_can_verify_after_logging_in_via_api(): void
