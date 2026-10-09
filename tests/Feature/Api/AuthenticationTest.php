@@ -88,6 +88,61 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_login_is_locked_after_five_failures_for_the_same_email_and_ip(): void
+    {
+        $user = User::factory()->create();
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->fromFrontend()->postJson('/api/auth/login', [
+                'email' => $user->email,
+                'password' => 'wrong-password',
+            ])->assertStatus(422);
+        }
+
+        // 6 回目は正しい password でも 429。Web 画面と違い email 欄の validation error にはしない。
+        $this->fromFrontend()->postJson('/api/auth/login', [
+            'email' => strtoupper($user->email),
+            'password' => 'password',
+        ])
+            ->assertStatus(429)
+            ->assertJson(['code' => 'rate_limited'])
+            ->assertHeader('Retry-After');
+        $this->assertGuest();
+
+        // 別 IP からは同じ email でも login できる（email 単位で止めると第三者に締め出されるため）。
+        $this->fromFrontend()->withServerVariables(['REMOTE_ADDR' => '10.0.0.2'])
+            ->postJson('/api/auth/login', [
+                'email' => $user->email,
+                'password' => 'password',
+            ])
+            ->assertOk();
+    }
+
+    public function test_successful_login_resets_failure_count(): void
+    {
+        $user = User::factory()->create();
+
+        for ($i = 0; $i < 4; $i++) {
+            $this->fromFrontend()->postJson('/api/auth/login', [
+                'email' => $user->email,
+                'password' => 'wrong-password',
+            ]);
+        }
+
+        $this->fromFrontend()->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->assertOk();
+        $this->app['auth']->guard('web')->logout();
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->fromFrontend()->postJson('/api/auth/login', [
+                'email' => $user->email,
+                'password' => 'wrong-password',
+            ])->assertStatus(422);
+        }
+    }
+
     public function test_already_authenticated_users_cannot_call_login(): void
     {
         $user = User::factory()->create();

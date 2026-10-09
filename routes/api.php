@@ -14,25 +14,25 @@ use Illuminate\Support\Facades\Route;
 Route::get('/user', [UserController::class, 'show'])->middleware('auth:sanctum');
 
 Route::post('/auth/register', [RegisteredUserController::class, 'store'])
-    ->middleware(['api.guest', 'throttle:6,1']);
+    ->middleware(['api.guest', 'throttle:auth.register']);
 
 Route::post('/auth/login', [AuthenticatedSessionController::class, 'store'])
-    ->middleware('api.guest');
+    ->middleware(['api.guest', 'throttle:auth.login']);
 
 Route::post('/auth/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth:sanctum');
 
 Route::post('/auth/forgot-password', [PasswordResetLinkController::class, 'store'])
-    ->middleware(['api.guest', 'throttle:6,1']);
+    ->middleware(['api.guest', 'throttle:auth.forgot-password']);
 
 Route::post('/auth/reset-password', [NewPasswordController::class, 'store'])
-    ->middleware(['api.guest', 'throttle:6,1']);
+    ->middleware(['api.guest', 'throttle:auth.reset-password']);
 
 Route::post('/auth/email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
-    ->middleware(['auth:sanctum', 'throttle:6,1']);
+    ->middleware(['auth:sanctum', 'throttle:auth.verification-notification']);
 
 Route::post('/auth/confirm-password', [ConfirmablePasswordController::class, 'store'])
-    ->middleware(['auth:sanctum', 'throttle:6,1']);
+    ->middleware(['auth:sanctum', 'throttle:auth.confirm-password']);
 
 Route::get('/profile', [ProfileController::class, 'show'])->middleware('auth:sanctum');
 

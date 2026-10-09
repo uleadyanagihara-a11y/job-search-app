@@ -544,19 +544,23 @@ route middlewareの実行順はrouteに書いた順ではなく、Kernelの`$mid
 
 | endpoint | middleware |
 | --- | --- |
-| `POST /api/auth/register` | `api.guest`, `throttle:6,1` |
-| `POST /api/auth/login` | `api.guest` + `LoginRequest`のrate limit |
-| `POST /api/auth/forgot-password` | `api.guest`, `throttle:6,1` |
-| `POST /api/auth/reset-password` | `api.guest`, `throttle:6,1` |
+| `POST /api/auth/register` | `api.guest`, `throttle:auth.register` |
+| `POST /api/auth/login` | `api.guest`, `throttle:auth.login` + `LoginRequest`のrate limit |
+| `POST /api/auth/forgot-password` | `api.guest`, `throttle:auth.forgot-password` |
+| `POST /api/auth/reset-password` | `api.guest`, `throttle:auth.reset-password` |
 | `GET /api/user` | `auth:sanctum` |
 | `POST /api/auth/logout` | `auth:sanctum` |
-| `POST /api/auth/email/verification-notification` | `auth:sanctum`, `throttle:6,1` |
-| `POST /api/auth/confirm-password` | `auth:sanctum`, `throttle:6,1` |
+| `POST /api/auth/email/verification-notification` | `auth:sanctum`, `throttle:auth.verification-notification` |
+| `POST /api/auth/confirm-password` | `auth:sanctum`, `throttle:auth.confirm-password` |
 | `GET/PATCH /api/profile` | `auth:sanctum` |
 | `PUT /api/profile/password` | `auth:sanctum`。bodyの`current_password`を検証 |
 | `DELETE /api/profile` | `auth:sanctum`。bodyの`password`を検証 |
 | verification必須の業務API | `auth:sanctum`, `api.verified` |
 | password再確認が必要な業務API | `auth:sanctum`, `api.verified`, `api.password.confirm` |
+
+`throttle:<name>`は`AppServiceProvider`の`RateLimiter::for()`で定義する名前付きlimiterで、いずれも6回/分。guest専用endpointはIP単位、認証済みendpointはuser単位で数える。`throttle:6,1`はroute間で同じkey（user idまたはdomain|IP）を共有し、別endpointのrequestも同じ回数に合算されるため使わない。Inertia撤去までのWeb側POST（`register`/`login`/`forgot-password`/`reset-password`/`email/verification-notification`/`confirm-password`）にも同じ名前のlimiterを付け、Web/APIのrequestを合算して数える（Web側が制限の抜け道にならないようにするため）。Web側で超過した場合は429の標準エラー画面になる。
+
+loginは2段で制限する。`LoginRequest`がemail+IPの組ごとに失敗5回/分で止め（成功でリセット）、`throttle:auth.login`がIP単位で20回/分（成功も数える）で止める。前者だけではemailを変えて試す攻撃を防げないため後者を重ねる。email単位では数えない（第三者が他人のaccountを締め出せるため）。後者はIP共有環境（NAT等）を考慮して他endpointより緩くしている。どちらも超過時は`429 rate_limited`と`Retry-After`を返し、Vueのlogin画面が「アクセス回数が多すぎます」を表示する。APIはXHRのため、メール認証callback（§5.4）のような`302`＋`error=too-many-requests`のredirectは使わない。Inertia撤去までのWeb側`POST /login`は従来どおり`email`欄のvalidation errorで表示する。
 
 password更新とaccount削除はrequest bodyで現在のpasswordを検証するため、`api.password.confirm`を重ねない。
 
