@@ -406,6 +406,7 @@ validation 以外の error は次の形式とする。production response に例
 | `201` | 省略 | resource 作成 |
 | `204` | body なし | 更新/削除等で返却データ不要 |
 | `400` | `bad_request` | JSON 不正など validation 以外の不正 request |
+| `400` | `session_required` | session 専用 endpoint に session 無し（Sanctum が stateful と判定しない Referer/Origin）で来た |
 | `401` | `unauthenticated` | session なし、期限切れ |
 | `403` | `forbidden` | 認可不足 |
 | `403` | `email_unverified` | email verification が必要 |
@@ -438,17 +439,17 @@ validation 以外の error は次の形式とする。production response に例
 | API | middleware | 成功 response | Vue 側の次動作 |
 | --- | --- | --- | --- |
 | `GET /api/user` | `auth:sanctum` | `200 { data: user }` | auth store を初期化。401 は guest として扱う |
-| `POST /api/auth/register` | `api.guest`, throttle | `201 { data: user, meta: { redirect_to } }` | auth store 更新後 dashboard へ |
-| `POST /api/auth/login` | `api.guest`, LoginRequest limiter | `200 { data: user, meta: { redirect_to } }` | allowlist 済み intended SPA URL または dashboard へ |
-| `POST /api/auth/logout` | `auth:sanctum` | `204` | auth store 破棄後 `/` へ |
+| `POST /api/auth/register` | `api.guest`, throttle, `api.session` | `201 { data: user, meta: { redirect_to } }` | auth store 更新後 dashboard へ |
+| `POST /api/auth/login` | `api.guest`, LoginRequest limiter, `api.session` | `200 { data: user, meta: { redirect_to } }` | allowlist 済み intended SPA URL または dashboard へ |
+| `POST /api/auth/logout` | `auth:sanctum`, `api.session` | `204` | auth store 破棄後 `/` へ |
 | `POST /api/auth/forgot-password` | `api.guest`, throttle | `200 { code, message }` | 同じ画面に message を表示 |
 | `POST /api/auth/reset-password` | `api.guest`, throttle | `200 { code, message }` | login 画面へ移動し message を渡す |
 | `POST /api/auth/email/verification-notification` | `auth:sanctum`/throttle | `200 { code, message }` | 同じ画面に message を表示 |
-| `POST /api/auth/confirm-password` | `auth:sanctum` | `204` | 保存した intended SPA URL へ |
+| `POST /api/auth/confirm-password` | `auth:sanctum`, `api.session` | `204` | 保存した intended SPA URL へ |
 | `GET /api/profile` | `auth:sanctum` | `200 { data, meta }` | profile form 初期化 |
 | `PATCH /api/profile` | `auth:sanctum` | `200 { data: user }` | auth store も同じ user で更新 |
 | `PUT /api/profile/password` | `auth:sanctum` | `204` | form reset + success 表示 |
-| `DELETE /api/profile` | `auth:sanctum` | `204` | auth store 破棄後 `/` へ |
+| `DELETE /api/profile` | `auth:sanctum`, `api.session` | `204` | auth store 破棄後 `/` へ |
 
 補足事項:
 
@@ -529,13 +530,19 @@ Laravel callback は画面 HTML や Inertia response を返さないため、Lar
 | `api.guest` | 認証済みuserによるguest専用操作を拒否 | `409 already_authenticated` |
 | `auth:sanctum` | Sanctumによるsession認証 | `401 unauthenticated` |
 | `api.verified` | `MustVerifyEmail`対象userのverificationを要求 | `403 email_unverified`（userが無い場合は`401 unauthenticated`） |
-| `api.password.confirm` | sessionのpassword確認時刻を検証 | `423 password_confirmation_required` |
+| `api.password.confirm` | sessionのpassword確認時刻を検証 | `423 password_confirmation_required`（sessionが無い場合は`400 session_required`） |
+| `api.session` | sessionを書き換える/読むendpointでsessionの存在を要求 | `400 session_required` |
 
 Laravel標準の`guest`は認証済みuserへ302 redirectするためAPI routeでは使用しない。標準`verified`と`password.confirm`はstatusの考え方を踏襲するが、安定した`code`を返すAPI専用middlewareに置き換える。認可はPolicy/Gate、入力検証はFormRequestに置き、controllerへ同じ判定を重複させない。
 
 `api.verified`は`auth:sanctum`と併用する前提だが、routeへ`auth:sanctum`を付け忘れても未ログインのrequestを素通ししないよう、userが無い場合は`401 unauthenticated`を返す（標準`verified`もuser無しは拒否する）。このため、未ログインでも閲覧できるroute（求人一覧など）には付けない。verificationの有無で表示だけを変えるrouteは、controller/Policy側で`hasVerifiedEmail()`を判定する。
 
-route middlewareの実行順はrouteに書いた順ではなく、Kernelの`$middlewarePriority`による並べ替えで決まる（`route:list -v`の表示も実行順ではない）。一覧にあるmiddlewareは一覧の順に前へ寄せられ、一覧に無いmiddlewareはgroupの後ろに残る。このためAPI routeの実行順は、Sanctum stateful/session/CSRF、`auth:sanctum`、`throttle`、route binding、`api.guest`/`api.verified`/`api.password.confirm`（一覧に無いため最後）、FormRequest、controllerとなる。
+route middlewareの実行順は、Kernelの`$middlewarePriority`による並べ替えを経て決まる（`route:list -v`の表示は実行順ではない）。並べ替えは一覧にあるmiddleware同士の相対順だけを一覧の順に直すもので、一覧に無いmiddlewareを無条件に最後へ回すわけではない。一覧に無いもの同士（`api.guest`/`api.session`/`api.verified`/`api.password.confirm`）の相対順はrouteの記述順のままになる。現行のAPI routeはSanctum stateful/session/CSRF、`auth:sanctum`、`throttle`、route binding、`api.guest`、`api.session`、FormRequest、controllerの順に動くよう記述しており、`EnsureApiSessionTest`で並べ替え後の実際の順序を検査する。
+
+`api.session`はsessionを書き換える/読むendpointに付け、DB更新や認証の後で`$request->session()`が例外になって500になる（registerではuser作成と`Registered`の後に落ちる）のを、FormRequest/controllerより前の400に置き換える。目的はsession無しのrequestを副作用の前で止めることであり、登録処理全体（DB更新とmail送信等）の原子性を保証するものではない。
+
+- `api.session`を付けたendpointはsession（Cookie）認証専用であり、token認証を導入しても`400 session_required`になる。token認証を導入する際は、§5.5.2で`api.session`の付いたendpointをsession専用として扱うか見直す。
+- `api.password.confirm`もsession無しでは`api.session`と同じ`400 session_required`を返し、併用時の実行順で応答が変わらないようにする。
 
 - `api.guest`と`throttle`を併用するrouteでは`throttle`が先に動き、`409 already_authenticated`で拒否されるrequestもrate limitを消費する。制限が厳しくなる方向のため許容する。
 - `api.verified`/`api.password.confirm`はroute bindingの後に動く。model bindingを持つ業務APIでbinding（DB検索・`404`）より前に拒否したい場合は、`bootstrap/app.php`で`$middlewarePriority`に追加する。
@@ -546,17 +553,17 @@ route middlewareの実行順はrouteに書いた順ではなく、Kernelの`$mid
 
 | endpoint | middleware |
 | --- | --- |
-| `POST /api/auth/register` | `api.guest`, `throttle:auth.register` |
-| `POST /api/auth/login` | `api.guest`, `throttle:auth.login` + `LoginRequest`のrate limit |
+| `POST /api/auth/register` | `throttle:auth.register`, `api.guest`, `api.session` |
+| `POST /api/auth/login` | `throttle:auth.login`, `api.guest`, `api.session` + `LoginRequest`のrate limit |
 | `POST /api/auth/forgot-password` | `api.guest`, `throttle:auth.forgot-password` |
 | `POST /api/auth/reset-password` | `api.guest`, `throttle:auth.reset-password` |
 | `GET /api/user` | `auth:sanctum` |
-| `POST /api/auth/logout` | `auth:sanctum` |
+| `POST /api/auth/logout` | `auth:sanctum`, `api.session` |
 | `POST /api/auth/email/verification-notification` | `auth:sanctum`, `throttle:auth.verification-notification` |
-| `POST /api/auth/confirm-password` | `auth:sanctum`, `throttle:auth.confirm-password` |
+| `POST /api/auth/confirm-password` | `auth:sanctum`, `throttle:auth.confirm-password`, `api.session` |
 | `GET/PATCH /api/profile` | `auth:sanctum` |
 | `PUT /api/profile/password` | `auth:sanctum`。bodyの`current_password`を検証 |
-| `DELETE /api/profile` | `auth:sanctum`。bodyの`password`を検証 |
+| `DELETE /api/profile` | `auth:sanctum`, `api.session`。bodyの`password`を検証 |
 | verification必須の業務API | `auth:sanctum`, `api.verified` |
 | password再確認が必要な業務API | `auth:sanctum`, `api.verified`, `api.password.confirm` |
 
