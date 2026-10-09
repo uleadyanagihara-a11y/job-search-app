@@ -51,6 +51,36 @@ class EmailVerificationTest extends TestCase
         );
     }
 
+    public function test_url_in_verification_mail_verifies_email(): void
+    {
+        $user = User::factory()->unverified()->create();
+
+        // 他のテストは verificationUrl() で自作した URL を使うため、VerifyEmail が実際に
+        // 生成する URL（createUrlUsing の差し替えや有効期限設定を含む）で往復させる。
+        $actionUrl = (new VerifyEmail)->toMail($user)->actionUrl;
+
+        $this->actingAs($user)->get($actionUrl)
+            ->assertRedirect(self::FRONTEND_URL.'/dashboard?verified=1');
+        $this->assertTrue($user->fresh()->hasVerifiedEmail());
+    }
+
+    public function test_url_in_verification_mail_expires_after_60_minutes(): void
+    {
+        $early = User::factory()->unverified()->create();
+        $late = User::factory()->unverified()->create();
+        $earlyUrl = (new VerifyEmail)->toMail($early)->actionUrl;
+        $lateUrl = (new VerifyEmail)->toMail($late)->actionUrl;
+
+        $this->travel(59)->minutes();
+        $this->actingAs($early)->get($earlyUrl)
+            ->assertRedirect(self::FRONTEND_URL.'/dashboard?verified=1');
+
+        $this->travel(2)->minutes();
+        $this->actingAs($late)->get($lateUrl)
+            ->assertRedirect(self::FRONTEND_URL.'/verify-email?error=invalid-or-expired');
+        $this->assertFalse($late->fresh()->hasVerifiedEmail());
+    }
+
     public function test_email_can_be_verified(): void
     {
         $user = User::factory()->unverified()->create();
@@ -101,6 +131,60 @@ class EmailVerificationTest extends TestCase
         $response = $this->actingAs($user)->get($this->verificationUrl($user).'tampered');
 
         $this->assertFalse($user->fresh()->hasVerifiedEmail());
+        $response->assertRedirect(self::FRONTEND_URL.'/verify-email?error=invalid-or-expired');
+    }
+
+    public function test_link_sent_before_email_change_does_not_verify_new_email(): void
+    {
+        $user = User::factory()->unverified()->create();
+        $oldLink = $this->verificationUrl($user);
+
+        $this->actingAs($user)->fromFrontend()->patchJson('/api/profile', [
+            'name' => $user->name,
+            'email' => 'changed@example.com',
+        ])->assertOk();
+
+        // auth:sanctum が default guard を sanctum に切り替えたまま残る（テストは同じ app を
+        // 使い回すため）。本番はリクエストごとに app が作り直されるので web に戻す。
+        $this->app['auth']->shouldUse('web');
+
+        $this->actingAs($user)->get($oldLink)
+            ->assertRedirect(self::FRONTEND_URL.'/verify-email?error=invalid-or-expired');
+        $this->assertFalse($user->fresh()->hasVerifiedEmail());
+    }
+
+    public function test_verified_user_with_stale_hash_is_not_treated_as_verified(): void
+    {
+        // hash 判定は verified 判定より先。古いリンクで「認証済み」と見せない。
+        $user = User::factory()->create();
+
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            ['id' => $user->id, 'hash' => sha1('old@example.com')]
+        );
+
+        $this->actingAs($user)->get($verificationUrl)
+            ->assertRedirect(self::FRONTEND_URL.'/verify-email?error=invalid-or-expired');
+    }
+
+    public function test_signed_link_with_swapped_id_and_hash_is_rejected_by_signature(): void
+    {
+        $owner = User::factory()->unverified()->create();
+        $other = User::factory()->unverified()->create();
+
+        // 署名はそのままで id と hash を $other のものに差し替える。controller の id/hash 判定は
+        // 通ってしまうため、signed が無ければ $other が認証される。
+        $verificationUrl = str_replace(
+            '/auth/email/verify/'.$owner->id.'/'.sha1($owner->getEmailForVerification()),
+            '/auth/email/verify/'.$other->id.'/'.sha1($other->getEmailForVerification()),
+            $this->verificationUrl($owner),
+        );
+
+        $response = $this->actingAs($other)->get($verificationUrl);
+
+        $this->assertFalse($owner->fresh()->hasVerifiedEmail());
+        $this->assertFalse($other->fresh()->hasVerifiedEmail());
         $response->assertRedirect(self::FRONTEND_URL.'/verify-email?error=invalid-or-expired');
     }
 
@@ -179,9 +263,62 @@ class EmailVerificationTest extends TestCase
         }
 
         // 7 回目は正しいリンクでも throttle が signed/auth より先に弾く。
+        $this->flushSession();
+
         $this->get($verificationUrl)
-            ->assertRedirect(self::FRONTEND_URL.'/verify-email?error=too-many-requests');
+            ->assertRedirect(self::FRONTEND_URL.'/verify-email?error=too-many-requests')
+            ->assertSessionMissing('url.intended');
         $this->assertFalse($user->fresh()->hasVerifiedEmail());
+    }
+
+    public function test_throttled_valid_link_does_not_verify(): void
+    {
+        $user = User::factory()->unverified()->create();
+        $tamperedUrl = $this->verificationUrl($user).'tampered';
+
+        Event::fake();
+
+        for ($i = 0; $i < 6; $i++) {
+            $this->actingAs($user)->get($tamperedUrl);
+        }
+
+        // ログイン済み・正しいリンクで、throttle 以外に止めるものが無い状態でも認証させない。
+        $this->actingAs($user)->get($this->verificationUrl($user))
+            ->assertRedirect(self::FRONTEND_URL.'/verify-email?error=too-many-requests');
+        Event::assertNotDispatched(Verified::class);
+        $this->assertFalse($user->fresh()->hasVerifiedEmail());
+    }
+
+    public function test_callback_throttle_resets_after_decay(): void
+    {
+        $user = User::factory()->unverified()->create();
+        $tamperedUrl = $this->verificationUrl($user).'tampered';
+
+        for ($i = 0; $i < 6; $i++) {
+            $this->actingAs($user)->get($tamperedUrl);
+        }
+
+        $this->travel(61)->seconds();
+
+        $this->actingAs($user)->get($this->verificationUrl($user))
+            ->assertRedirect(self::FRONTEND_URL.'/dashboard?verified=1');
+        $this->assertTrue($user->fresh()->hasVerifiedEmail());
+    }
+
+    public function test_callback_throttle_is_counted_per_ip(): void
+    {
+        $user = User::factory()->unverified()->create();
+        $tamperedUrl = $this->verificationUrl($user).'tampered';
+
+        for ($i = 0; $i < 6; $i++) {
+            $this->actingAs($user)->get($tamperedUrl);
+        }
+
+        $this->actingAs($user)
+            ->withServerVariables(['REMOTE_ADDR' => '10.0.0.2'])
+            ->get($this->verificationUrl($user))
+            ->assertRedirect(self::FRONTEND_URL.'/dashboard?verified=1');
+        $this->assertTrue($user->fresh()->hasVerifiedEmail());
     }
 
     public function test_callback_middleware_runs_throttle_then_signed_then_auth(): void
