@@ -49,6 +49,21 @@ class AuthenticationTest extends TestCase
         $response->assertSessionMissing('url.intended');
     }
 
+    public function test_login_drops_host_of_intended_verification_callback(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->fromFrontend()
+            ->withSession(['url.intended' => 'https://evil.example.test/auth/email/verify/1/abc?expires=1&signature=xyz'])
+            ->postJson('/api/auth/login', [
+                'email' => $user->email,
+                'password' => 'password',
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('meta.redirect_to', '/auth/email/verify/1/abc?expires=1&signature=xyz');
+    }
+
     public function test_login_ignores_intended_url_outside_verification_callback(): void
     {
         foreach ([
