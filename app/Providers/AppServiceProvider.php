@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\Sanctum;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -29,6 +30,12 @@ class AppServiceProvider extends ServiceProvider
         Vite::prefetch(concurrency: 3);
 
         $this->forceApplicationUrl();
+
+        // 認証は Sanctum の SPA（session）認証だけを使い、API token は発行しない。
+        // personal_access_tokens テーブルも無いため、既定のままだと session で認証できない
+        // request に Authorization: Bearer が付くと token を照合する SQL が失敗して 500 になる。
+        // token を読まないようにして、bearer は無視し未ログインとして 401 を返す。
+        Sanctum::getAccessTokenFromRequestUsing(fn () => null);
 
         // reset mail は Laravel の画面 route ではなく SPA の URL へ向ける（§5.3）。
         ResetPassword::createUrlUsing(fn ($user, string $token) => FrontendUrl::to(
