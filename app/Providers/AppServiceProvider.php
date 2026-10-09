@@ -4,6 +4,9 @@ namespace App\Providers;
 
 use App\Support\FrontendUrl;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -29,5 +32,36 @@ class AppServiceProvider extends ServiceProvider
             '/reset-password/'.$token,
             ['email' => $user->getEmailForPasswordReset()],
         ));
+
+        $this->configureRateLimiting();
+    }
+
+    /**
+     * endpoint ごとの名前付き limiter（docs/inertia-removal-migration.md §5.5.2）。
+     *
+     * `throttle:6,1` は全 route で同じ key（user id または domain|IP）を使うため、
+     * 別 endpoint の request も同じ回数に合算される。名前付き limiter は key に limiter 名が
+     * 付くので endpoint ごとに独立して数えられる。`by()` を省くと全 user 共通の key になるため必ず指定する。
+     * メール認証 callback は ThrottleEmailVerificationCallback が別途制限する。
+     */
+    private function configureRateLimiting(): void
+    {
+        // login は LoginRequest が email+IP の組ごとに失敗 5 回で止める。それだけだと 1 IP から
+        // email を変えて試す攻撃を防げないため、IP 単位の上限も重ねる。成功も数えるので、
+        // IP を共有する環境（社内・学校の NAT 等）を考慮して他の endpoint より緩くする。
+        RateLimiter::for('auth.login', fn (Request $request) => Limit::perMinute(20)->by($request->ip()));
+
+        // guest 専用 endpoint は未ログインなので IP 単位。
+        foreach (['auth.register', 'auth.forgot-password', 'auth.reset-password'] as $name) {
+            RateLimiter::for($name, fn (Request $request) => Limit::perMinute(6)->by($request->ip()));
+        }
+
+        // 認証済み endpoint は user 単位。web/API の同じ操作の route は同じ limiter を共有する。
+        // auth の後に動く前提だが、auth 無しの route に付けても 500 にならないよう IP に倒す。
+        foreach (['auth.verification-notification', 'auth.confirm-password'] as $name) {
+            RateLimiter::for($name, fn (Request $request) => Limit::perMinute(6)->by(
+                $request->user()?->getAuthIdentifier() ?? $request->ip(),
+            ));
+        }
     }
 }
