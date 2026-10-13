@@ -42,6 +42,21 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_login_screen_lockout_stays_a_validation_error(): void
+    {
+        // API は 429 だが、Inertia の画面は撤去まで従来どおり email 欄のエラーで表示する。
+        $user = User::factory()->create();
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->post('/login', ['email' => $user->email, 'password' => 'wrong-password']);
+        }
+
+        $this->post('/login', ['email' => $user->email, 'password' => 'password'])
+            ->assertStatus(302)
+            ->assertSessionHasErrors('email');
+        $this->assertGuest();
+    }
+
     public function test_users_can_logout(): void
     {
         $user = User::factory()->create();
