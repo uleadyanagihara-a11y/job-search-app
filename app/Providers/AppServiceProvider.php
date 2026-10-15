@@ -7,8 +7,10 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\Sanctum;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,6 +29,14 @@ class AppServiceProvider extends ServiceProvider
     {
         Vite::prefetch(concurrency: 3);
 
+        $this->forceApplicationUrl();
+
+        // 認証は Sanctum の SPA（session）認証だけを使い、API token は発行しない。
+        // personal_access_tokens テーブルも無いため、既定のままだと session で認証できない
+        // request に Authorization: Bearer が付くと token を照合する SQL が失敗して 500 になる。
+        // token を読まないようにして、bearer は無視し未ログインとして 401 を返す。
+        Sanctum::getAccessTokenFromRequestUsing(fn () => null);
+
         // reset mail は Laravel の画面 route ではなく SPA の URL へ向ける（§5.3）。
         ResetPassword::createUrlUsing(fn ($user, string $token) => FrontendUrl::to(
             '/reset-password/'.$token,
@@ -34,6 +44,22 @@ class AppServiceProvider extends ServiceProvider
         ));
 
         $this->configureRateLimiting();
+    }
+
+    /**
+     * 生成する URL の host/scheme を APP_URL に固定する（host header poisoning 対策）。
+     *
+     * Nginx は client の Host を X-Forwarded-Host に転送し、trustProxies('*') がそれを信用する。
+     * 固定しないと、メール認証リンク等が request の Host / X-Forwarded-Host / X-Forwarded-Proto
+     * から作られ、攻撃者の指定した host を指す正規のメールを送れてしまう。
+     * 受信側（signed の検証）は request の URL を使うため、この設定の影響を受けない。
+     */
+    private function forceApplicationUrl(): void
+    {
+        $appUrl = (string) config('app.url');
+
+        URL::forceRootUrl($appUrl);
+        URL::forceScheme(parse_url($appUrl, PHP_URL_SCHEME) ?: 'http');
     }
 
     /**
