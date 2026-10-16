@@ -24,9 +24,9 @@
 11. 新 SPA の CSS 基盤は現行と同じ Tailwind CSS 3 + PostCSS とする。Inertia 撤去と Tailwind CSS 4 化を同時に行わず、Tailwind CSS 4 と `@tailwindcss/vite` の採用可否は SPA 切替完了後の別変更で判断する。
 12. Figtree font は新 SPA から自己ホストする。Bunny Fonts への runtime 接続は廃止し、font file は Vite の hashed asset として配信、license は `frontend/src/assets/fonts/` で font file と一緒に管理する。
 13. SPA router は Vue Router 4、unit/component test は Vitest + Vue Test Utils 2 + jsdom、Nginx 経由の E2E/UI 回帰 test は Playwright を使う。package と Playwright browser image の追加は、正確な version/peer dependency/diff を提示して承認を得てから行う。
-14. 初期 frontend CI は ESLint、`vue-tsc --noEmit`、Vitest、production build、Playwright をすべて必須とする。いずれかが失敗/未実行なら移行完了としない。
+14. 初期 frontend CI は ESLint、`vue-tsc --build`、Vitest、production build、Playwright をすべて必須とする。いずれかが失敗/未実行なら移行完了としない。
 15. 新 SPA は最初から TypeScript strict mode で作る。旧 `resources/js` は JavaScript のまま維持し、`frontend/` へ画面/component を移植する単位で完全に型付けする。TypeScript 化と同時に Tailwind CSS 4 化等の別の技術移行は行わない。
-16. frontend の Node image は `node:22.<patch>-bookworm-slim` で固定する。`node:22`, `node:22-bookworm-slim`, `node:22.<minor>-bookworm-slim` のような実行時に patch が変わる tag は使わない。正確な patch は frontend package の engine 確認後、依存追加承認時に固定する。
+16. frontend の Node image は `node:24.<patch>-bookworm-slim` で固定する（現在 `node:24.22.0-bookworm-slim` / npm 11.19.1）。`node:24`, `node:24-bookworm-slim`, `node:24.<minor>-bookworm-slim` のような実行時に patch が変わる tag は使わない。当初は Node 22 としていたが、Node 22 は 2027-04-30 に EOL となり、Sail と既存 CI が既に Node 24 のため、新規の `frontend/` は最初から Node 24 LTS とする。
 17. CI 製品は Phase 1–4 のローカル実装を妨げないため Phase 4 完了まで保留できるが、Phase 5 着手前に確定する。repository が GitHub 管理の場合は GitHub Actions を第一候補とし、それまでは CI 製品に依存しない command/artifact 契約を維持する。
 
 ## 2. 現状の構成
@@ -66,7 +66,7 @@ Vue Pages
 | npm（新規） | `vue-router` 4 | SPA route、history、route guard、not-found | `frontend/` の runtime dependency として追加。test は `createMemoryHistory()` を使う |
 | npm（新規） | `vitest`, `@vue/test-utils` 2, `jsdom` | unit/component/DOM test | `frontend/` の dev dependency として追加 |
 | npm（新規） | `@playwright/test` | Nginx 経由の E2E/UI screenshot test | `frontend/` の dev dependency として追加し、browser image と version を一致させる |
-| npm（新規） | `typescript`, `vue-tsc`, `@types/node` | Vue SFC、app/config/test の静的型検査 | `frontend/` の dev dependency として追加し、`vue-tsc --noEmit` を CI 必須化 |
+| npm（新規） | `typescript`, `vue-tsc`, `@types/node` | Vue SFC、app/config/test の静的型検査 | `frontend/` の dev dependency として追加し、`vue-tsc --build` を CI 必須化。`typescript` は `typescript-eslint` の peer（`<6.1.0`）に合わせて `~6.0.3` に固定し、TypeScript 7 は対象外 |
 | npm（新規） | `eslint`, `@eslint/js`, `eslint-plugin-vue`, `typescript-eslint`, `globals` | TypeScript/Vue/test/config の lint | `frontend/` の dev dependency として追加。初期は type-aware lint を必須とせず `vue-tsc` と責務分離 |
 
 現在は HTTP client と SPA router の直接依存がない。HTTP client は標準 `fetch` でも実装できる。Vue Router を採用する場合は依存追加の承認が必要になる。
@@ -189,10 +189,10 @@ Laravel と Vite の両 upstream に `Host`, `X-Forwarded-For`, `X-Forwarded-Hos
 
 #### 4.2.2 Compose と Vite
 
-`compose.yaml` に専用 `frontend` service を追加し、Vite 8 に対応する `node:22.<patch>-bookworm-slim` を使用する。正確な patch は Vue Router、TypeScript、ESLint、Vitest、Playwright 等の採用 version の `engines`/peer dependency を確認した上で固定する。
+`compose.yaml` に専用 `frontend` service を追加し、Vite 8 に対応する `node:24.<patch>-bookworm-slim` を使用する。Vitest、Playwright 等を追加する際も、採用 version の `engines`/peer dependency がこの patch を満たすことを確認する。
 
 ```dotenv
-NODE_VERSION=22.<exact-patch>
+NODE_VERSION=24.22.0
 ```
 
 ```yaml
@@ -200,14 +200,16 @@ frontend:
     image: 'node:${NODE_VERSION}-bookworm-slim'
 ```
 
-`NODE_VERSION` は `.env.example` と CI で同じ値を使い、`frontend/package.json` の `engines.node` は選定 version 以上 23 未満を許可する。image に同梱される npm の正確な version は `packageManager: "npm@<version>"` に記録する。`.npmrc` の `engine-strict=true` で Node 不一致をエラーにし、CI で `node --version` と `npm --version` を出力/検査する。container 起動時に npm を自動更新せず、dependency は `package-lock.json` + `npm ci` で再現する。
+`NODE_VERSION` は `.env.example` と CI で同じ値を使い、`frontend/package.json` の `engines.node` は選定 version 以上 25 未満を許可する（`>=24.22.0 <25`）。image に同梱される npm の正確な version は `packageManager: "npm@<version>"` に記録する。`.npmrc` の `engine-strict=true` で Node 不一致をエラーにし、CI で `node --version` と `npm --version` を出力/検査する。container 起動時に npm を自動更新せず、dependency は `package-lock.json` + `npm ci` で再現する。
 
-`bookworm-slim` に curl/wget が存在することに依存せず、frontend healthcheck は Node 22 の `fetch()` を使う。Playwright は browser 依存を含む専用 image を別途固定し、frontend の Node image へ browser/package を追加しない。
+`bookworm-slim` に curl/wget が存在することに依存せず、frontend healthcheck は Node の `fetch()` を使う。Playwright は browser 依存を含む専用 image を別途固定し、frontend の Node image へ browser/package を追加しない。
 
 - working directory: `/app`
 - source mount: `./frontend:/app`
-- dependency volume: `frontend-node-modules:/app/node_modules`
-- command: `npm run dev -- --host 0.0.0.0 --port 5173 --strictPort`
+- dependency: `./frontend/node_modules` を source mount ごと bind mount する（named volume は使わない）。ホストの VSCode（Vue 拡張・ESLint・型チェック）が依存を解決できるようにするため。WSL2 の Linux filesystem 上で linux-x64 の native binary を共有するため互換性の問題は無い。Git 管理外は `frontend/.gitignore` で担保する
+- user: `${WWWUSER}:${WWWGROUP}`（bind mount 上のファイルを host user 所有にする）
+- command: `npm run dev`（`host`/`port`/`strictPort` は `frontend/vite.config.ts` が持つ）
+- dependency 操作: `docker compose run --rm frontend npm ci` 等。`sail run` は `laravel.test` 内での実行になるため使わない
 - network: `sail`
 - port: `expose: 5173` のみ。host の `ports` は設定しない
 - healthcheck: Node の `fetch('http://127.0.0.1:5173/')` で 2xx を確認
@@ -752,7 +754,7 @@ API response は `unknown` から扱い、user、API error、validation errors�
 
 ESLint は flat config の `frontend/eslint.config.js` を使い、JavaScript/TypeScript/Vue の recommended rule を基本とする。型の正しさは `vue-tsc`、構文・Vue template・未使用コード等は ESLint を正とし、同じ検査を重複設定しない。初期は type-aware ESLint rule、Prettier、フォーマット全面変更を追加しない。generated output、coverage、Playwright artifact は lint 対象から外す。
 
-frontend script は `lint` = `eslint . --max-warnings=0`, `typecheck` = `vue-tsc --noEmit` を持つ。CI では lint/typecheck/Vitest/build/Playwright を別 command とし、build script の内部に typecheck を隠蔽しない。
+frontend script は `lint` = `eslint . --max-warnings=0`, `typecheck` = `vue-tsc --build` を持つ（`tsconfig.json` は `files: []` + references 構成のため、`--noEmit` だと何も検査されない。各 tsconfig 側に `noEmit: true` を置く）。CI では lint/typecheck/Vitest/build/Playwright を別 command とし、build script の内部に typecheck を隠蔽しない。
 
 ## 6. 固定する移行順序
 
@@ -796,10 +798,12 @@ frontend script は `lint` = `eslint . --max-warnings=0`, `typecheck` = `vue-tsc
 6. `@tailwindcss/vite` は `frontend/package.json` と `frontend/vite.config.ts` に入れない。CSS は `@tailwind base;`, `@tailwind components;`, `@tailwind utilities;` を PostCSS 経由で処理する。
 7. `frontend/eslint.config.js` を追加し、`npm run lint` と `npm run typecheck` が空の shell/entry の段階から成功するようにする。
 8. `Link`, `Head`, Ziggy `route()`, page props を使わない TypeScript の shell と navigation を作る。
-9. `compose.yaml` に専用 `frontend` service を追加し、engine 確認後の正確な `node:22.<patch>-bookworm-slim` で Vite を Docker network 内の `frontend:5173` に起動する。`NODE_VERSION` に major/minor だけの値を設定せず、Vite port は host へ公開しない。
+9. `compose.yaml` に専用 `frontend` service を追加し、正確な `node:24.<patch>-bookworm-slim` で Vite を Docker network 内の `frontend:5173` に起動する。`NODE_VERSION` に major/minor だけの値を設定せず、Vite port は host へ公開しない。
 10. development Nginx から通常画面と HMR WebSocket を Vite へ、API/CSRF/callback/healthcheck を Laravel へ転送する。Vite に API proxy は設定しない。
 11. `frontend/vitest.config.ts`、component test setup、`frontend/playwright.config.ts`、TypeScript の unit/component/router/E2E test の格納先を作る。
 12. version を `@playwright/test` と一致させた専用 `frontend-e2e` service を Compose test profile に追加し、Nginx と専用 test database の ready 後に実行する。
+
+実施順の補足: ホストに Node が無く、`package-lock.json` は固定 image 同梱の npm で生成する必要があるため、手順 9 の `frontend` service と Node image 固定は手順 1 より先に行う。最初の変更では手順 1 のうち manifest / `index.html` / entry / Vite config と、手順 3・7・9（Nginx 連携の `depends_on` を除く）と frontend CI job（`npm ci` → lint → typecheck → build）までを扱う。router・API client・auth store（手順 1 の残りと 2・8）、Tailwind/font（4〜6）、Nginx 振り分け（10）、test toolchain（11〜12）は後続の変更とする。
 
 完了条件: Nginx の公開 URL から新 SPA を開け、reload/direct access、HMR、title、404、guest/auth guard が動作する。Laravel service で npm process は動作していない。
 
@@ -876,7 +880,7 @@ Tailwind CSS 4 化は Phase 0–7 と 10 章の完了判定に含めない。SPA
 | --- | --- |
 | 新規 | `frontend/index.html`, `frontend/public`, `frontend/src/assets`, `frontend/src/assets/fonts`, `frontend/vite.config.ts`, `frontend/vitest.config.ts`, `frontend/playwright.config.ts`, `frontend/tsconfig.json`, `frontend/tsconfig.app.json`, `frontend/tsconfig.node.json`, `frontend/env.d.ts`, `frontend/eslint.config.js`, `frontend/postcss.config.js`, `frontend/tailwind.config.js`, `frontend/src/main.ts`, router, API client, auth store/composable, API form composable, route guard, unit/component/router/E2E tests |
 | package | `frontend/package.json`, `frontend/package-lock.json`。Vue Router 4、TypeScript/`vue-tsc`、ESLint/Vue/TypeScript plugin、Vitest、Vue Test Utils 2、jsdom、Playwright、Tailwind CSS 3/PostCSS/Autoprefixer/forms plugin を含め、`@tailwindcss/vite` は含めない。新規 package の追加は承認後に実施 |
-| Node runtime | `node:22.<patch>-bookworm-slim`。正確な patch を `.env.example` の `NODE_VERSION`、Compose、CI、`package.json` engines で一致させ、起動後に Node/npm version を検証 |
+| Node runtime | `node:24.22.0-bookworm-slim`。正確な patch を `.env.example` の `NODE_VERSION`、Compose、CI、`package.json` engines で一致させ、起動後に Node/npm version を検証 |
 | 設定移管 | ルート `jsconfig.json` の alias を新 SPA の `tsconfig*.json` と `vite.config.ts` に再定義し、`ziggy-js` は移さない。ルート `tailwind.config.js`, `postcss.config.js` も新 SPA 用に再定義する。`@/*` は `frontend/src/*`、Tailwind content は `frontend/index.html` と `frontend/src` だけを対象とする |
 | CSS/font 移管 | `resources/css/app.css` を `frontend/src/assets/app.css` へ移植し、`frontend/src/main.ts` から import。`app.blade.php` の Bunny Fonts 参照は移さず、Figtree WOFF2/license と `@font-face` に置き換える |
 | TypeScript 移植 | `resources/js/Layouts`, `resources/js/Components`, `resources/js/Pages` は旧配置では JavaScript のまま維持。`frontend/src` へ画面単位で移植するときに `.ts`/`<script setup lang="ts">` 化し、Inertia API を外す |
@@ -888,7 +892,7 @@ Tailwind CSS 4 化は Phase 0–7 と 10 章の完了判定に含めない。SPA
 | --- | --- |
 | 新規 | `docker/nginx/development.conf`, `docker/nginx/production.conf`, production Nginx image/build定義 |
 | 変更 | `compose.yaml`, `.env.example`, `.gitignore`, `README.md`。Vite process を専用 `frontend` service へ移し、Vite host port 公開を廃止する |
-| 確認 | Nginx 単一入口、Sanctum stateful/CSRF Cookie、HMR WebSocket、`node:22.<patch>-bookworm-slim`、`frontend/dist` artifact、dev/prod の Nginx config、healthcheck、cache header |
+| 確認 | Nginx 単一入口、Sanctum stateful/CSRF Cookie、HMR WebSocket、`node:24.<patch>-bookworm-slim`、`frontend/dist` artifact、dev/prod の Nginx config、healthcheck、cache header |
 
 ### CI
 
@@ -955,8 +959,8 @@ Laravel の validator/FormRequest が唯一の正規ルールを持つ。SPA の
 - DOM ref、event、Vue Router params/query、dynamic validation error は strict mode で null/union/index error になりやすい。型無視で回避せず、共通正規化関数と型付き composable に集約する。
 - API response を type assertion だけで信頼すると Laravel の実 response と乖離しても `vue-tsc` で検出できない。contract test と runtime guard を残す。
 - ESLint と TypeScript で同じ検査を二重化すると設定/エラーが増える。初期は non-type-aware ESLint + `vue-tsc` に責務を分ける。
-- `node:22` や `node:22-bookworm-slim` を使うと pull 時期で Node patch/image が変わり、local/CI の結果がずれる。`NODE_VERSION` は必ず正確な patch を持たせる。
-- Node 22 は 2027 年4月に EOL 予定のため、SPA 移行完了後に Node 24 LTS 更新を別変更として計画する。TypeScript/Inertia/Tailwind 移行と Node major 更新を同時に行わない。
+- `node:24` や `node:24-bookworm-slim` を使うと pull 時期で Node patch/image が変わり、local/CI の結果がずれる。`NODE_VERSION` は必ず正確な patch を持たせる。
+- Vue Router は計画どおり 4 系（`4.6.4`）で始める。v4 は 2025-12 以降リリースが無く最新は v5 だが、v5 化は SPA 切替完了後に peer（`pinia` / `@pinia/colada`）と互換性を確認して別変更で行う。
 - direct access と browser reload を component 内 navigation だけで試すと、Nginx fallback の不備を見落とす。
 
 このため、API の並行追加、SPA の並行構築、入口の切替、旧経路/依存の撤去という順序を維持する。
@@ -1148,8 +1152,8 @@ component/API testだけでなく、Nginx公開URLを使うintegration/E2E test�
 - Laravel通常画面route0件、旧mutation route0件
 - 署名付きメール認証Web callbackを維持
 - Laravel/Vue test、frontend build、Nginx構文/経路testが成功
-- frontend の ESLint、`vue-tsc --noEmit`、Vitest、Playwright が成功し、新 SPA source は TypeScript strict mode で型付け済み
-- frontend は正確な `node:22.<patch>-bookworm-slim` で実行され、local/CI の Node/npm version が一致
+- frontend の ESLint、`vue-tsc --build`、Vitest、Playwright が成功し、新 SPA source は TypeScript strict mode で型付け済み
+- frontend は正確な `node:24.<patch>-bookworm-slim` で実行され、local/CI の Node/npm version が一致
 - frontend は Tailwind CSS 3 + PostCSS で build され、UI 回帰確認が成功、`@tailwindcss/vite` 依存は残存しない
 - Figtree は license とともに自己ホストされ、hashed `/assets/*` から配信、SPA の外部 font 通信は 0 件
 - 認証、メール、profileの主要フローが成功

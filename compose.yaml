@@ -52,6 +52,26 @@ services:
             timeout: 5s
             retries: 10
             start_period: 5s
+    # 新 SPA（frontend/）の Vite。host へは port を公開せず、Docker network 内の frontend:5173 だけで待ち受ける。
+    # node_modules は ./frontend/node_modules に bind mount され、ホストの VSCode から型を解決できる。
+    # 初回や lock 更新後は ./vendor/bin/sail run --rm frontend npm ci で依存を入れてから起動する。
+    frontend:
+        image: 'node:${NODE_VERSION:-24.22.0}-bookworm-slim'
+        user: '${WWWUSER:-1000}:${WWWGROUP:-1000}'
+        working_dir: /app
+        command: ['npm', 'run', 'dev']
+        expose:
+            - '5173'
+        volumes:
+            - './frontend:/app'
+        networks:
+            - sail
+        healthcheck:
+            test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:5173/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+            start_period: 10s
     mysql:
         image: 'mysql:${MYSQL_VERSION:-8.4.11}'
         # サーバ起動フラグ。永続ボリュームの有無に関係なく毎回適用される
