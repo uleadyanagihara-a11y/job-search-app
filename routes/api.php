@@ -43,6 +43,10 @@ Route::patch('/profile', [ProfileController::class, 'update'])->middleware('auth
 
 // password 更新と account 削除は body の現在 password で本人確認するため
 // api.password.confirm を重ねない（docs/inertia-removal-migration.md §5.5.2）。
-Route::delete('/profile', [ProfileController::class, 'destroy'])->middleware(['auth:sanctum', 'api.session']);
+// 現在 password の総当たりを防ぐため、同じく password を照合する confirm-password と
+// limiter を共有し、3 endpoint の合計で数える。
+Route::delete('/profile', [ProfileController::class, 'destroy'])
+    ->middleware(['auth:sanctum', 'throttle:auth.confirm-password', 'api.session']);
 
-Route::put('/profile/password', [PasswordController::class, 'update'])->middleware('auth:sanctum');
+Route::put('/profile/password', [PasswordController::class, 'update'])
+    ->middleware(['auth:sanctum', 'throttle:auth.confirm-password']);

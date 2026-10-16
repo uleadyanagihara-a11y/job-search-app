@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class PasswordResetTest extends TestCase
@@ -153,5 +154,95 @@ class PasswordResetTest extends TestCase
 
         $response->assertStatus(422)->assertJsonValidationErrors('token');
         $response->assertJsonMissingValidationErrors('email');
+    }
+
+    public function test_reset_with_expired_token_returns_token_error(): void
+    {
+        $user = User::factory()->create();
+        $token = Password::createToken($user);
+
+        // config/auth.php の passwords.users.expire（60 分）を過ぎた token。
+        $this->travel(61)->minutes();
+
+        $this->fromFrontend()->postJson('/api/auth/reset-password', [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ])
+            ->assertStatus(422)
+            ->assertJson(['code' => 'validation_failed'])
+            ->assertJsonValidationErrors('token');
+
+        $this->assertFalse(Hash::check('new-password', $user->fresh()->password));
+    }
+
+    public function test_reset_validates_password_without_consuming_the_token(): void
+    {
+        $user = User::factory()->create();
+        $token = Password::createToken($user);
+
+        $this->fromFrontend()->postJson('/api/auth/reset-password', [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => 'new-password',
+            'password_confirmation' => 'different-password',
+        ])
+            ->assertStatus(422)
+            ->assertJson(['code' => 'validation_failed'])
+            ->assertJsonValidationErrors('password')
+            ->assertJsonMissingValidationErrors('token');
+
+        $this->assertFalse(Hash::check('new-password', $user->fresh()->password));
+
+        // 入力ミスで token が使用済みにならず、そのまま再送できる。
+        $this->fromFrontend()->postJson('/api/auth/reset-password', [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ])->assertOk();
+    }
+
+    public function test_forgot_password_validates_email(): void
+    {
+        Notification::fake();
+
+        $this->fromFrontend()->postJson('/api/auth/forgot-password', ['email' => 'not-an-email'])
+            ->assertStatus(422)
+            ->assertJson(['code' => 'validation_failed'])
+            ->assertJsonValidationErrors('email');
+
+        Notification::assertNothingSent();
+    }
+
+    #[DataProvider('guestPasswordEndpoints')]
+    public function test_authenticated_users_cannot_call_guest_password_endpoints(string $uri): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->fromFrontend()->postJson($uri, [
+            'token' => Password::createToken($user),
+            'email' => $user->email,
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ])
+            ->assertStatus(409)
+            ->assertJson(['code' => 'already_authenticated']);
+
+        Notification::assertNothingSent();
+        $this->assertTrue(Hash::check('password', $user->fresh()->password));
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function guestPasswordEndpoints(): array
+    {
+        return [
+            'forgot-password' => ['/api/auth/forgot-password'],
+            'reset-password' => ['/api/auth/reset-password'],
+        ];
     }
 }

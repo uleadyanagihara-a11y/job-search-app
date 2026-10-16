@@ -36,7 +36,7 @@ class EnsureApiSessionTest extends TestCase
             'login' => ['POST', '/api/auth/login', $guest],
             'logout' => ['POST', '/api/auth/logout', [EnsureFrontendRequestsAreStateful::class, Authenticate::class, EnsureApiSession::class]],
             'confirm-password' => ['POST', '/api/auth/confirm-password', [EnsureFrontendRequestsAreStateful::class, Authenticate::class, ThrottleRequests::class, EnsureApiSession::class]],
-            'delete profile' => ['DELETE', '/api/profile', [EnsureFrontendRequestsAreStateful::class, Authenticate::class, EnsureApiSession::class]],
+            'delete profile' => ['DELETE', '/api/profile', [EnsureFrontendRequestsAreStateful::class, Authenticate::class, ThrottleRequests::class, EnsureApiSession::class]],
         ];
     }
 
