@@ -83,6 +83,22 @@ class ProfileTest extends TestCase
         $this->assertNotSame($other->email, $user->refresh()->email);
     }
 
+    public function test_profile_update_validates_input(): void
+    {
+        $user = User::factory()->create();
+        $original = $user->only(['name', 'email']);
+
+        $this->actingAs($user)->fromFrontend()->patchJson('/api/profile', [
+            'name' => '',
+            'email' => 'not-an-email',
+        ])
+            ->assertStatus(422)
+            ->assertJson(['code' => 'validation_failed'])
+            ->assertJsonValidationErrors(['name', 'email']);
+
+        $this->assertSame($original, $user->refresh()->only(['name', 'email']));
+    }
+
     public function test_user_can_delete_their_account(): void
     {
         $user = User::factory()->create();
