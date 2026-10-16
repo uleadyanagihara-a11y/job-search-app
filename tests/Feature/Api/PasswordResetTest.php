@@ -66,6 +66,49 @@ class PasswordResetTest extends TestCase
         $this->assertTrue(Hash::check('new-password', $user->fresh()->password));
     }
 
+    public function test_user_can_reset_password_from_the_emailed_token_and_log_in(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+
+        $this->fromFrontend()->postJson('/api/auth/forgot-password', ['email' => $user->email])
+            ->assertOk();
+
+        $token = null;
+        Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $n) use (&$token) {
+            $token = $n->token;
+
+            return true;
+        });
+
+        $this->fromFrontend()->postJson('/api/auth/reset-password', [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ])->assertOk()->assertJson(['code' => 'password_reset']);
+
+        // token は使い捨て。
+        $this->fromFrontend()->postJson('/api/auth/reset-password', [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => 'another-password',
+            'password_confirmation' => 'another-password',
+        ])->assertStatus(422)->assertJsonValidationErrors('token');
+
+        $this->fromFrontend()->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->assertStatus(422);
+        $this->assertGuest();
+
+        $this->fromFrontend()->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password' => 'new-password',
+        ])->assertOk();
+        $this->assertAuthenticatedAs($user);
+    }
+
     public function test_reset_rotates_the_remember_token_and_dispatches_event(): void
     {
         Event::fake([PasswordReset::class]);

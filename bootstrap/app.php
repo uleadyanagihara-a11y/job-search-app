@@ -3,6 +3,7 @@
 use App\Http\Middleware\Api\EnsureApiEmailIsVerified;
 use App\Http\Middleware\Api\EnsureApiGuest;
 use App\Http\Middleware\Api\EnsureApiPasswordIsConfirmed;
+use App\Http\Middleware\Api\EnsureApiSession;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\ThrottleEmailVerificationCallback;
 use App\Support\Api\ApiExceptionRenderer;
@@ -60,6 +61,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.guest' => EnsureApiGuest::class,
             'api.verified' => EnsureApiEmailIsVerified::class,
             'api.password.confirm' => EnsureApiPasswordIsConfirmed::class,
+            'api.session' => EnsureApiSession::class,
         ]);
 
         $middleware->web(append: [

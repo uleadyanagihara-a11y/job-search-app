@@ -406,12 +406,13 @@ validation 以外の error は次の形式とする。production response に例
 | `201` | 省略 | resource 作成 |
 | `204` | body なし | 更新/削除等で返却データ不要 |
 | `400` | `bad_request` | JSON 不正など validation 以外の不正 request |
+| `400` | `session_required` | session 専用 endpoint に session 無し（Sanctum が stateful と判定しない Referer/Origin）で来た |
 | `401` | `unauthenticated` | session なし、期限切れ |
-| `403` | `forbidden` | 認可不足 |
+| `403` | `forbidden` | 認可不足（存在が公開されている resource への操作権限なし。§5.5.5） |
 | `403` | `email_unverified` | email verification が必要 |
 | `423` | `password_confirmation_required` | password 再確認が必要。Laravel標準`RequirePassword`に合わせる |
-| `404` | `not_found` | resource なし |
-| `409` | `conflict` | 状態競合、重複操作 |
+| `404` | `not_found` | resource なし。他人の非公開 resource も存在しない場合と同じ応答にする（§5.5.5） |
+| `409` | `conflict` | 状態競合、重複操作（応募締切、重複応募、許可されない状態遷移など。§5.5.5） |
 | `409` | `already_authenticated` | guest専用APIを認証済みuserが実行 |
 | `419` | `csrf_token_mismatch` | CSRF token 不正/期限切れ |
 | `422` | `validation_failed` | FormRequest/validator failure |
@@ -438,17 +439,17 @@ validation 以外の error は次の形式とする。production response に例
 | API | middleware | 成功 response | Vue 側の次動作 |
 | --- | --- | --- | --- |
 | `GET /api/user` | `auth:sanctum` | `200 { data: user }` | auth store を初期化。401 は guest として扱う |
-| `POST /api/auth/register` | `api.guest`, throttle | `201 { data: user, meta: { redirect_to } }` | auth store 更新後 dashboard へ |
-| `POST /api/auth/login` | `api.guest`, LoginRequest limiter | `200 { data: user, meta: { redirect_to } }` | allowlist 済み intended SPA URL または dashboard へ |
-| `POST /api/auth/logout` | `auth:sanctum` | `204` | auth store 破棄後 `/` へ |
+| `POST /api/auth/register` | `api.guest`, throttle, `api.session` | `201 { data: user, meta: { redirect_to } }` | auth store 更新後 dashboard へ |
+| `POST /api/auth/login` | `api.guest`, LoginRequest limiter, `api.session` | `200 { data: user, meta: { redirect_to } }` | allowlist 済み intended SPA URL または dashboard へ |
+| `POST /api/auth/logout` | `auth:sanctum`, `api.session` | `204` | auth store 破棄後 `/` へ |
 | `POST /api/auth/forgot-password` | `api.guest`, throttle | `200 { code, message }` | 同じ画面に message を表示 |
 | `POST /api/auth/reset-password` | `api.guest`, throttle | `200 { code, message }` | login 画面へ移動し message を渡す |
 | `POST /api/auth/email/verification-notification` | `auth:sanctum`/throttle | `200 { code, message }` | 同じ画面に message を表示 |
-| `POST /api/auth/confirm-password` | `auth:sanctum` | `204` | 保存した intended SPA URL へ |
+| `POST /api/auth/confirm-password` | `auth:sanctum`, `api.session` | `204` | 保存した intended SPA URL へ |
 | `GET /api/profile` | `auth:sanctum` | `200 { data, meta }` | profile form 初期化 |
 | `PATCH /api/profile` | `auth:sanctum` | `200 { data: user }` | auth store も同じ user で更新 |
 | `PUT /api/profile/password` | `auth:sanctum` | `204` | form reset + success 表示 |
-| `DELETE /api/profile` | `auth:sanctum` | `204` | auth store 破棄後 `/` へ |
+| `DELETE /api/profile` | `auth:sanctum`, `api.session` | `204` | auth store 破棄後 `/` へ |
 
 補足事項:
 
@@ -456,7 +457,7 @@ validation 以外の error は次の形式とする。production response に例
 - password reset mail の URL は Laravel の画面 route に依存させず、SPA の `/reset-password/{token}?email=...` を生成する。
 - email verification は API に含めず、後述する署名付き Web コールバックを利用する。
 - password reset mail request は user の存在有無にかかわらず同じ `200`, `code`, 汎用 `message` を返し、account enumeration を防ぐ。
-- 未認証は `401`、認証済みだが権限不足は `403` とする。email 未確認や password 再確認が必要な場合は、Vue が遷移先を判断できる安定した error code も返す。
+- 未認証は `401`、認証済みだが権限不足は `403` とする（他人の非公開データは `404`。§5.5.5）。email 未確認や password 再確認が必要な場合は、Vue が遷移先を判断できる安定した error code も返す。
 - flash session props は API response の `message` と Vue の local/router state に置き換える。
 - Laravel の `shouldRenderJsonWhen` は既に `api/*` または `expectsJson()` を JSON と判定する。SPA の API client は常に `Accept: application/json` を送る。
 
@@ -529,16 +530,22 @@ Laravel callback は画面 HTML や Inertia response を返さないため、Lar
 | `api.guest` | 認証済みuserによるguest専用操作を拒否 | `409 already_authenticated` |
 | `auth:sanctum` | Sanctumによるsession認証 | `401 unauthenticated` |
 | `api.verified` | `MustVerifyEmail`対象userのverificationを要求 | `403 email_unverified`（userが無い場合は`401 unauthenticated`） |
-| `api.password.confirm` | sessionのpassword確認時刻を検証 | `423 password_confirmation_required` |
+| `api.password.confirm` | sessionのpassword確認時刻を検証 | `423 password_confirmation_required`（sessionが無い場合は`400 session_required`） |
+| `api.session` | sessionを書き換える/読むendpointでsessionの存在を要求 | `400 session_required` |
 
-Laravel標準の`guest`は認証済みuserへ302 redirectするためAPI routeでは使用しない。標準`verified`と`password.confirm`はstatusの考え方を踏襲するが、安定した`code`を返すAPI専用middlewareに置き換える。認可はPolicy/Gate、入力検証はFormRequestに置き、controllerへ同じ判定を重複させない。
+Laravel標準の`guest`は認証済みuserへ302 redirectするためAPI routeでは使用しない。標準`verified`と`password.confirm`はstatusの考え方を踏襲するが、安定した`code`を返すAPI専用middlewareに置き換える。認可はPolicy/Gate、入力検証はFormRequestに置き、controllerへ同じ判定を重複させない（業務APIの詳細は§5.5.5）。
 
 `api.verified`は`auth:sanctum`と併用する前提だが、routeへ`auth:sanctum`を付け忘れても未ログインのrequestを素通ししないよう、userが無い場合は`401 unauthenticated`を返す（標準`verified`もuser無しは拒否する）。このため、未ログインでも閲覧できるroute（求人一覧など）には付けない。verificationの有無で表示だけを変えるrouteは、controller/Policy側で`hasVerifiedEmail()`を判定する。
 
-route middlewareの実行順はrouteに書いた順ではなく、Kernelの`$middlewarePriority`による並べ替えで決まる（`route:list -v`の表示も実行順ではない）。一覧にあるmiddlewareは一覧の順に前へ寄せられ、一覧に無いmiddlewareはgroupの後ろに残る。このためAPI routeの実行順は、Sanctum stateful/session/CSRF、`auth:sanctum`、`throttle`、route binding、`api.guest`/`api.verified`/`api.password.confirm`（一覧に無いため最後）、FormRequest、controllerとなる。
+route middlewareの実行順は、Kernelの`$middlewarePriority`による並べ替えを経て決まる（`route:list -v`の表示は実行順ではない）。並べ替えは一覧にあるmiddleware同士の相対順だけを一覧の順に直すもので、一覧に無いmiddlewareを無条件に最後へ回すわけではない。一覧に無いもの同士（`api.guest`/`api.session`/`api.verified`/`api.password.confirm`）の相対順はrouteの記述順のままになる。現行のAPI routeはSanctum stateful/session/CSRF、`auth:sanctum`、`throttle`、route binding、`api.guest`、`api.session`、FormRequest、controllerの順に動くよう記述しており、`EnsureApiSessionTest`で並べ替え後の実際の順序を検査する。
+
+`api.session`はsessionを書き換える/読むendpointに付け、DB更新や認証の後で`$request->session()`が例外になって500になる（registerではuser作成と`Registered`の後に落ちる）のを、FormRequest/controllerより前の400に置き換える。目的はsession無しのrequestを副作用の前で止めることであり、登録処理全体（DB更新とmail送信等）の原子性を保証するものではない。
+
+- `api.session`を付けたendpointはsession（Cookie）認証専用であり、token認証を導入しても`400 session_required`になる。token認証を導入する際は、§5.5.2で`api.session`の付いたendpointをsession専用として扱うか見直す。
+- `api.password.confirm`もsession無しでは`api.session`と同じ`400 session_required`を返し、併用時の実行順で応答が変わらないようにする。
 
 - `api.guest`と`throttle`を併用するrouteでは`throttle`が先に動き、`409 already_authenticated`で拒否されるrequestもrate limitを消費する。制限が厳しくなる方向のため許容する。
-- `api.verified`/`api.password.confirm`はroute bindingの後に動く。model bindingを持つ業務APIでbinding（DB検索・`404`）より前に拒否したい場合は、`bootstrap/app.php`で`$middlewarePriority`に追加する。
+- `api.verified`/`api.password.confirm`は現状route bindingの後に動く（`api` groupの`SubstituteBindings`がroute middlewareより前に並び、priority一覧にも入っているため）。業務APIでは`api.verified`をbindingより前に動かす（§5.5.5「middlewareの実行順」）。
 
 署名付きメール認証callbackだけはAPI group外の`web` routeで、専用throttle、`signed`、`auth`の順に評価する（§5.4。`bootstrap/app.php`でpriorityに追加して実現）。
 
@@ -546,19 +553,19 @@ route middlewareの実行順はrouteに書いた順ではなく、Kernelの`$mid
 
 | endpoint | middleware |
 | --- | --- |
-| `POST /api/auth/register` | `api.guest`, `throttle:auth.register` |
-| `POST /api/auth/login` | `api.guest`, `throttle:auth.login` + `LoginRequest`のrate limit |
+| `POST /api/auth/register` | `throttle:auth.register`, `api.guest`, `api.session` |
+| `POST /api/auth/login` | `throttle:auth.login`, `api.guest`, `api.session` + `LoginRequest`のrate limit |
 | `POST /api/auth/forgot-password` | `api.guest`, `throttle:auth.forgot-password` |
 | `POST /api/auth/reset-password` | `api.guest`, `throttle:auth.reset-password` |
 | `GET /api/user` | `auth:sanctum` |
-| `POST /api/auth/logout` | `auth:sanctum` |
+| `POST /api/auth/logout` | `auth:sanctum`, `api.session` |
 | `POST /api/auth/email/verification-notification` | `auth:sanctum`, `throttle:auth.verification-notification` |
-| `POST /api/auth/confirm-password` | `auth:sanctum`, `throttle:auth.confirm-password` |
+| `POST /api/auth/confirm-password` | `auth:sanctum`, `throttle:auth.confirm-password`, `api.session` |
 | `GET/PATCH /api/profile` | `auth:sanctum` |
 | `PUT /api/profile/password` | `auth:sanctum`。bodyの`current_password`を検証 |
-| `DELETE /api/profile` | `auth:sanctum`。bodyの`password`を検証 |
-| verification必須の業務API | `auth:sanctum`, `api.verified` |
-| password再確認が必要な業務API | `auth:sanctum`, `api.verified`, `api.password.confirm` |
+| `DELETE /api/profile` | `auth:sanctum`, `api.session`。bodyの`password`を検証 |
+| verification必須の業務API | `auth:sanctum`, `api.verified` + Policy（§5.5.5） |
+| password再確認が必要な業務API | `auth:sanctum`, `api.verified`, `api.password.confirm` + Policy（§5.5.5） |
 
 `throttle:<name>`は`AppServiceProvider`の`RateLimiter::for()`で定義する名前付きlimiterで、いずれも6回/分。guest専用endpointはIP単位、認証済みendpointはuser単位で数える。`throttle:6,1`はroute間で同じkey（user idまたはdomain|IP）を共有し、別endpointのrequestも同じ回数に合算されるため使わない。Inertia撤去までのWeb側POST（`register`/`login`/`forgot-password`/`reset-password`/`email/verification-notification`/`confirm-password`）にも同じ名前のlimiterを付け、Web/APIのrequestを合算して数える（Web側が制限の抜け道にならないようにするため）。Web側で超過した場合は429の標準エラー画面になる。
 
@@ -612,6 +619,112 @@ framework exceptionは`bootstrap/app.php`の`withExceptions()`から同じ生成
 - API以外のconsumerや非同期処理でも同じ失敗型を扱う。
 
 移行時は`AlreadyAuthenticatedException`, `EmailUnverifiedException`, `PasswordConfirmationRequiredException`等を追加し、middlewareの`return ApiErrorResponse...`を`throw`へ置き換える。既存renderer、response contract test、Vue側処理は維持する。型付き例外への移行をInertia撤去と同時には行わない。
+
+#### 5.5.5 業務APIの認証・認可方針
+
+求人・応募などの業務APIは、次の方針で認証・メール確認・認可・業務ルールを分ける。先回りしてmiddlewareや共通クラスを追加することはしない。Policy、`$middlewarePriority`の変更、テストは、最初の業務APIを実装するときに作る。
+
+##### 責務の分離
+
+| 層 | 判定すること | failure |
+| --- | --- | --- |
+| `auth:sanctum` | ログインしているか | `401 unauthenticated` |
+| `api.verified` | ログイン中userのメールアドレスが確認済みか | `403 email_unverified` |
+| Policy | ロール（求職者/企業など）や、対象データへのアクセス・操作権限 | `403 forbidden` または `404 not_found` |
+| FormRequest | 入力値の形式・値そのもの | `422 validation_failed` |
+| 業務処理（controllerから呼ぶ処理） | 応募締切、重複応募、状態遷移などの業務ルール | `409 conflict` |
+
+##### 認可判定はPolicyに集約する
+
+- 権限判定（ロール・所有者・公開状態による可否）はPolicyのabilityに書く。controllerに`if ($x->user_id !== $user->id) abort(403)`のような判定を書かない。
+- Policyの呼び出しは、route middlewareの`can:<ability>,<model>`か、controllerの`Gate::authorize()`のどちらか1か所にする。同じactionで両方使わない。
+- ロール判定を専用middlewareにしない。ロールも対象データ単位の判定もPolicyにまとめ、判定箇所を1つにする。
+- `api.verified`を付けたrouteでは、Policyで`hasVerifiedEmail()`を再判定しない。Policyでverificationを判定するのは、未ログインでも閲覧でき、verificationの有無で表示だけを変えるroute（§5.5.1）に限る。
+- Policyの`deny()`に書いたmessageはresponseに出ない（`AuthorizationException`はrendererで固定文言の`403 forbidden`になる）。SPAが理由で分岐する必要がある拒否はPolicyではなく業務ルール側（`409`）で扱う。
+
+##### 一覧API
+
+一覧APIは「Policyによる利用権限の確認」と「Queryによるデータの絞り込み」を組み合わせる。
+
+- Policyの`viewAny`等で、その一覧APIを使ってよいか（例: 企業userだけが自社求人への応募一覧を見られる）を判定する。
+- Policyはcollectionを絞り込めないため、取得するデータは必ずqueryで絞る（例: `$request->user()->applications()`、`->whereBelongsTo($company)`）。全件を取得してからPHP側で除外しない（paginationの件数と`meta`がずれ、取得漏れの判定も難しくなるため）。
+- 一覧から辿る詳細APIも同じqueryの範囲で取得するか、Policyで同じ条件を判定し、一覧と詳細で見える範囲を揃える。
+
+##### 403と404の使い分け
+
+| 対象 | 権限がないとき | 実装方法 |
+| --- | --- | --- |
+| 非公開データ（他人の応募履歴、他人宛てのスカウトなど） | 原則`404 not_found`。存在しないIDと同じresponseにして存在を推測させない | userの関連から取得する（`$request->user()->applications()->findOrFail($id)`）、scoped binding、またはPolicyで`Response::denyAsNotFound()` |
+| 公開されている対象（公開中の求人など）への、権限のない操作（他社求人の編集など） | `403 forbidden` | Policyで`deny()`（または`false`） |
+
+どちらにするかはresourceごとに決め、該当するPolicyのabilityにコメントで明記する。`denyAsNotFound()`はLaravelが`404`の`HttpException`に変換するため、rendererで`not_found`になる。
+
+##### 業務ルールと認可を分離する
+
+応募締切、重複応募、状態遷移（例: 選考終了後の辞退）などは、「このuserに権限があるか」ではなく「対象が今その操作を受け付ける状態か」の判定なので、Policyではなく業務処理側で判定する。
+
+`409`と`422`は次の基準で使い分ける。
+
+| status | 基準 | 例 |
+| --- | --- | --- |
+| `422 validation_failed` | request の入力値そのものが不正で、userが入力欄を直せば通る。FormRequestで判定し、`errors`にfield単位で返す | 必須項目なし、形式不正、文字数超過、登録時のemail重複 |
+| `409 conflict` | 入力値は正しいが、対象resourceの現在の状態と衝突する。入力欄を直しても解消しない | 応募締切後の応募、同じ求人への重複応募、許可されない状態遷移、他の操作との同時更新 |
+
+- 重複応募のような一意性は、事前チェックだけでは同時requestで抜けるため、DBのunique制約を正とし、`UniqueConstraintViolationException`を`409`に変換する。FormRequestの`unique` rule（`422`）は、入力欄の値の重複（email等）にだけ使う。
+- `409`は現時点では汎用の`conflict`を返す。SPAが締切と重複応募などを区別して表示する必要が出た時点で、業務固有の`code`を§5.1の表に追加し、§5.5.4の条件に従って型付き例外への移行を判断する。
+
+##### middlewareの実行順
+
+業務APIは「ログイン確認 → メール確認 → 対象データの取得（route binding）→ Policyによる認可」の順で評価する。
+
+`bootstrap/app.php`の現在の設定（Sanctum stateful API、`ThrottleEmailVerificationCallback`/`ValidateSignature`の`AuthenticatesRequests`直前への追加）のまま、`api` groupに`auth:sanctum`, `api.verified`, `can:update,user`を付けたrouteを並べ替え後の順序で確認すると、次のとおりで`api.verified`がbindingより後になる。
+
+```text
+1. EnsureFrontendRequestsAreStateful   (api group / Sanctum)
+2. Authenticate:sanctum                (priority: AuthenticatesRequests)
+   ThrottleRequests                    (付けた場合。priority: Authenticate の直後)
+3. SubstituteBindings                  (api group。priority 一覧にあり)
+4. EnsureApiEmailIsVerified            (priority 一覧に無く、group の後ろに残る)
+5. Authorize:update,user               (priority: SubstituteBindings の後)
+```
+
+route上で`api.verified`を先頭に書いても、`SubstituteBindings`は`api` group由来でroute middlewareより前に並ぶため、この順序は変わらない。このままだと、メール未確認userが存在しないIDや他人の非公開データを指定したときに`email_unverified`ではなく`404`が返り、未確認userにもresourceの存在確認をさせてしまう。
+
+最初の業務APIを実装するときに、`bootstrap/app.php`で次を追加して`api.verified`をbindingの直前に移す。
+
+```php
+$middleware->prependToPriorityList(
+    before: SubstituteBindings::class,
+    prepend: EnsureApiEmailIsVerified::class,
+);
+```
+
+追加後の順序は`EnsureFrontendRequestsAreStateful → Authenticate → (ThrottleRequests) → EnsureApiEmailIsVerified → SubstituteBindings → Authorize`になる。controllerで`Gate::authorize()`を使う場合も、全middlewareの後なので順序は同じになる。
+
+既存の認証APIへの影響:
+
+- 現在`api.verified`を付けているrouteは無い（`routes/api.php`）。priorityの並べ替えは一覧にあるmiddleware同士の相対順だけを直すため、`api.verified`を含まない既存routeの順序は変わらない。
+- Web側のメール認証は標準の`verified`（`Illuminate\Auth\Middleware\EnsureEmailIsVerified`）で別クラスのため、影響しない。
+- 追加時は`EnsureApiSessionTest`と同じ方法（`gatherRouteMiddleware()`）で業務APIの実行順をテストし、既存のテスト全体が通ることを確認する。
+- `api.password.confirm`はbindingの後のまま変えない。password再確認が必要な業務APIを作るときに、同じ理由で前に移すかを判断する。
+
+##### テスト
+
+業務APIごとに、少なくとも次をfeature testで確認する。
+
+| ケース | 期待値 |
+| --- | --- |
+| 未ログイン | `401 unauthenticated` |
+| メール未確認 | `403 email_unverified`（存在しないIDを指定した場合も`404`にならないこと） |
+| 他人のデータ | 非公開データは`404 not_found`（存在しないIDと同じresponse）、公開データへの権限のない操作は`403 forbidden`。DBが変更されていないこと |
+| 本人のデータ | `2xx`と期待するresponse body |
+| ロール違い（ロールで利用を制限するAPI） | `403 forbidden` |
+| 業務ルール違反 | `409 conflict`（入力値の不正は`422 validation_failed`） |
+
+一覧APIでは、上記に加えて次を確認する。
+
+- 他人のデータを用意した状態で取得し、responseに本人のデータだけが含まれること（件数と、他人のIDが含まれないことの両方を確認する）。
+- paginationを使う場合、`meta`の件数も絞り込み後の件数になっていること。
 
 ### 5.6 frontend test toolchain
 

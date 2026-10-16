@@ -30,6 +30,8 @@ class AuthenticatedSessionController extends Controller
      * session の intended URL がメール認証 callback なら、それを redirect_to として返す（§5.4）。
      *
      * host は捨てて path + query だけを返すため、外部 URL への open redirect にならない。
+     * path は route の {id}/{hash} の形に完全一致させる。prefix 一致だと
+     * `/auth/email/verify/1/../../profile`（`%2e%2e` も）がブラウザで解決され、callback 以外へ移動できてしまう。
      * intended は一度使ったら（許可しない URL でも）消す。
      */
     private function redirectTo(Request $request): string
@@ -39,7 +41,7 @@ class AuthenticatedSessionController extends Controller
         $path = (string) parse_url($intended, PHP_URL_PATH);
         $query = parse_url($intended, PHP_URL_QUERY);
 
-        if (! str_starts_with($path, '/auth/email/verify/')) {
+        if (! preg_match('#\A/auth/email/verify/\d+/[A-Za-z0-9]+\z#', $path)) {
             return '/dashboard';
         }
 

@@ -58,7 +58,8 @@ class AppServiceProvider extends ServiceProvider
     {
         $appUrl = (string) config('app.url');
 
-        URL::forceRootUrl($appUrl);
+        URL::useOrigin($appUrl);
+        // useOrigin だけでは scheme が request（X-Forwarded-Proto）のものに置き換わるため、scheme も固定する。
         URL::forceScheme(parse_url($appUrl, PHP_URL_SCHEME) ?: 'http');
     }
 
