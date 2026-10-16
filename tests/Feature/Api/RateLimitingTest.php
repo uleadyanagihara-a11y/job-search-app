@@ -375,4 +375,109 @@ class RateLimitingTest extends TestCase
             ->postJson('/api/auth/email/verification-notification')
             ->assertOk();
     }
+
+    /**
+     * 現在 password を照合する 3 endpoint は auth.confirm-password を共有する。
+     * endpoint を変えても試行回数が増えず、超過後は正しい password でも更新・削除されない。
+     */
+    public function test_current_password_endpoints_share_one_count(): void
+    {
+        $user = User::factory()->create();
+        $wrong = self::currentPasswordRequests('wrong-password');
+
+        for ($i = 0; $i < 6; $i++) {
+            [$method, $uri, $data] = array_values($wrong)[$i % 3];
+            $this->actingAs($user)->fromFrontend()->json($method, $uri, $data)->assertStatus(422);
+        }
+
+        foreach (self::currentPasswordRequests('password') as [$method, $uri, $data]) {
+            $this->actingAs($user)->fromFrontend()->json($method, $uri, $data)
+                ->assertStatus(429)
+                ->assertJson(['code' => 'rate_limited'])
+                ->assertHeader('Retry-After');
+        }
+
+        $user->refresh();
+        $this->assertTrue(Hash::check('password', $user->password));
+
+        // 別 user の回数には影響しない。
+        $other = User::factory()->create();
+        $this->actingAs($other)->fromFrontend()
+            ->putJson('/api/profile/password', self::currentPasswordRequests('password')['password update'][2])
+            ->assertNoContent();
+    }
+
+    public function test_current_password_endpoint_throttle_expires_after_one_minute(): void
+    {
+        $user = User::factory()->create();
+
+        for ($i = 0; $i < 6; $i++) {
+            $this->actingAs($user)->fromFrontend()
+                ->deleteJson('/api/profile', ['password' => 'wrong-password'])
+                ->assertStatus(422);
+        }
+
+        $this->travel(59)->seconds();
+        $this->actingAs($user)->fromFrontend()
+            ->deleteJson('/api/profile', ['password' => 'password'])
+            ->assertStatus(429);
+        $this->assertNotNull($user->fresh());
+
+        $this->travel(2)->seconds();
+        $this->actingAs($user)->fromFrontend()
+            ->deleteJson('/api/profile', ['password' => 'password'])
+            ->assertNoContent();
+        $this->assertNull($user->fresh());
+    }
+
+    /**
+     * Inertia 撤去まで残る web 側の password 更新・account 削除も同じ回数に合算する。
+     */
+    #[DataProvider('webCurrentPasswordEndpoints')]
+    public function test_web_current_password_endpoints_share_the_count_with_api(string $method, string $uri, array $data): void
+    {
+        $user = User::factory()->create();
+
+        for ($i = 0; $i < 6; $i++) {
+            $this->actingAs($user)->call($method, $uri, $data);
+        }
+
+        $this->actingAs($user)->fromFrontend()
+            ->postJson('/api/auth/confirm-password', ['password' => 'password'])
+            ->assertStatus(429)
+            ->assertJson(['code' => 'rate_limited']);
+
+        $this->actingAs($user)->call($method, $uri, $data)->assertStatus(429);
+    }
+
+    /**
+     * @return array<string, array{string, string, array<string, string>}>
+     */
+    public static function webCurrentPasswordEndpoints(): array
+    {
+        return [
+            'password update' => ['PUT', '/password', [
+                'current_password' => 'wrong-password',
+                'password' => 'new-password',
+                'password_confirmation' => 'new-password',
+            ]],
+            'delete profile' => ['DELETE', '/profile', ['password' => 'wrong-password']],
+        ];
+    }
+
+    /**
+     * @return array<string, array{string, string, array<string, string>}>
+     */
+    private static function currentPasswordRequests(string $password): array
+    {
+        return [
+            'confirm-password' => ['POST', '/api/auth/confirm-password', ['password' => $password]],
+            'password update' => ['PUT', '/api/profile/password', [
+                'current_password' => $password,
+                'password' => 'new-password',
+                'password_confirmation' => 'new-password',
+            ]],
+            'delete profile' => ['DELETE', '/api/profile', ['password' => $password]],
+        ];
+    }
 }
