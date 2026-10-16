@@ -26,6 +26,27 @@
 
 git はホストでネイティブに動く（Sail は不要）。
 
+### 新 SPA（`frontend/`）
+
+Inertia 撤去後の Vue SPA（計画は `docs/inertia-removal-migration.md`）。ルートの `package.json` / Sail の Node とは独立しており、
+**Compose の `frontend` service（`node:${NODE_VERSION}-bookworm-slim`、現在 24.22.0 / npm 11.19.1）でだけ npm を実行する**。
+`sail run` は `laravel.test` 内で実行されてしまうため、ここは `docker compose run` を使う。
+
+| 目的 | コマンド |
+| --- | --- |
+| 依存インストール（初回・lock 更新後） | `docker compose run --rm --no-deps frontend npm ci` |
+| lint / 型検査 / build | `docker compose run --rm --no-deps frontend npm run lint`（`typecheck` / `build` も同様） |
+| Vite dev サーバ | `./vendor/bin/sail up -d` で `frontend` service として起動（`frontend:5173`、host には非公開） |
+| ブラウザ確認 | http://localhost:8081（nginx の preview 入口。画面/HMR は Vite、`/api` `/sanctum` `/auth/email/verify` `/storage` `/up` は Laravel） |
+
+- 共存期間（Phase 3–4）は http://localhost:8080 が旧 Inertia アプリ、8081 が新 SPA。`SANCTUM_STATEFUL_DOMAINS` は両方を含める。
+  `frontend` が止まっていても nginx と 8080 は動く（8081 の画面だけ 502）。
+
+- `frontend/.npmrc` の `engine-strict=true` により、Sail の Node（24.18 / npm 12）で `npm ci` すると `EBADENGINE` で失敗する（意図どおり）。
+- Node を上げるときは `.env.example` の `NODE_VERSION`、`compose.yaml` の既定値、`frontend/package.json` の `engines`/`packageManager`、CI の `node-version` を同時に変える。
+- `node_modules` は bind mount（`frontend/node_modules`）なので、ホストの VSCode の Vue 拡張・ESLint がそのまま使える。
+- `typescript` は `typescript-eslint` の peer 上限（`<6.1.0`）のため `~6.0.3` に固定している。
+
 ### ポート（他プロジェクトと同居する前提でずらしてある）
 
 `.env` で以下をデフォルトから変更済み:

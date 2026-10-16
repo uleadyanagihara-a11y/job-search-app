@@ -3,6 +3,8 @@ services:
         image: 'nginx:${NGINX_VERSION:-1.28.0-alpine}'
         ports:
             - '${APP_PORT:-80}:80'
+            # 新 SPA の preview 入口（Phase 3–4 のみ。Phase 5 の切替時に削除）
+            - '${SPA_PREVIEW_PORT:-8081}:8081'
         volumes:
             - './docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro'
         networks:
@@ -52,6 +54,26 @@ services:
             timeout: 5s
             retries: 10
             start_period: 5s
+    # 新 SPA（frontend/）の Vite。host へは port を公開せず、Docker network 内の frontend:5173 だけで待ち受ける。
+    # node_modules は ./frontend/node_modules に bind mount され、ホストの VSCode から型を解決できる。
+    # 初回や lock 更新後は ./vendor/bin/sail run --rm frontend npm ci で依存を入れてから起動する。
+    frontend:
+        image: 'node:${NODE_VERSION:-24.22.0}-bookworm-slim'
+        user: '${WWWUSER:-1000}:${WWWGROUP:-1000}'
+        working_dir: /app
+        command: ['npm', 'run', 'dev']
+        expose:
+            - '5173'
+        volumes:
+            - './frontend:/app'
+        networks:
+            - sail
+        healthcheck:
+            test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:5173/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+            start_period: 10s
     mysql:
         image: 'mysql:${MYSQL_VERSION:-8.4.11}'
         # サーバ起動フラグ。永続ボリュームの有無に関係なく毎回適用される
