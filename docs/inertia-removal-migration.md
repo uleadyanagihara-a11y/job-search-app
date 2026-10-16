@@ -250,6 +250,8 @@ Phase 3–4 で旧 Inertia app と新 SPA をブラウザ確認する期間だ�
 | `http://localhost:8080` | 旧 Laravel/Inertia |
 | `http://localhost:8081` | 通常画面は Vite、API/CSRF/callback は Laravel |
 
+preview listener は `docker/nginx/default.conf` の 2 つ目の server（`listen 8081`）として実装し、compose の nginx に `${SPA_PREVIEW_PORT:-8081}:8081` を公開する。upstream は `resolver 127.0.0.11` と変数付き `proxy_pass` で request 時に解決し、`frontend` が未起動でも nginx（8080 の旧アプリ）が起動できるようにする。このため共存期間中は nginx に `frontend` への `depends_on` を付けず、4.2.2 の「Nginx は `frontend` の healthcheck 成功後に起動する」は Phase 5 の切替時に適用する。`Host` は `$http_host`（`localhost:8081`）をそのまま両 upstream に渡す。Vite は `allowedHosts` で Host を検査し、`frontend:5173` のような名前だと 403 を返すため、Host を upstream 名に書き換えてはならない。HMR client は page の host/port（8081）へ WebSocket を張るため `hmr.clientPort` は不要。
+
 この場合もブラウザは Vite や Laravel container へ直接接続しない。`SANCTUM_STATEFUL_DOMAINS` には `localhost:8080,localhost:8081` を設定する。Cookie は port では分離されないため session は共有される。Phase 5 で 8080 を新 SPA 構成へ切り替えたら、preview listener と 8081 の host port 公開を削除する。
 
 email verification の absolute signed callback URL の host/port は途中で 8081 に書き換えない。preview 期間の verification link は `APP_URL` の 8080 で Laravel callback を実行し、成功後だけ `FRONTEND_URL` の 8081 へ redirect して確認する。password reset link は署名付き callback ではないため、`FRONTEND_URL` の 8081 へ直接向ける。最終切替時は両方を 8080 に戻す。
