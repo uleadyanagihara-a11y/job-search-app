@@ -208,7 +208,7 @@ frontend:
 - source mount: `./frontend:/app`
 - dependency: `./frontend/node_modules` を source mount ごと bind mount する（named volume は使わない）。ホストの VSCode（Vue 拡張・ESLint・型チェック）が依存を解決できるようにするため。WSL2 の Linux filesystem 上で linux-x64 の native binary を共有するため互換性の問題は無い。Git 管理外は `frontend/.gitignore` で担保する
 - user: `${WWWUSER}:${WWWGROUP}`（bind mount 上のファイルを host user 所有にする）
-- command: `npm run dev`（`host`/`port`/`strictPort` は `frontend/vite.config.ts` が持つ）
+- command: `npm run dev -- --host 0.0.0.0 --port 5173 --strictPort`（`frontend/vite.config.ts` と重複させる。branch 切替で config が一時的に消えると Vite が config 無しで自動再起動し、`localhost` だけで待ち受けて Nginx から 502 になるため、CLI でも固定する。それでも Vue plugin は config 復帰まで読まれないため、切替後は `docker compose restart frontend` する）
 - dependency 操作: `docker compose run --rm frontend npm ci` 等。`sail run` は `laravel.test` 内での実行になるため使わない
 - network: `sail`
 - port: `expose: 5173` のみ。host の `ports` は設定しない

@@ -39,8 +39,14 @@ Inertia 撤去後の Vue SPA（計画は `docs/inertia-removal-migration.md`）�
 | Vite dev サーバ | `./vendor/bin/sail up -d` で `frontend` service として起動（`frontend:5173`、host には非公開） |
 | ブラウザ確認 | http://localhost:8081（nginx の preview 入口。画面/HMR は Vite、`/api` `/sanctum` `/auth/email/verify` `/storage` `/up` は Laravel） |
 
+| Nginx 振り分けの確認 | `./docker/nginx/smoke-test.sh`（ホストの curl で実行。path ごとの upstream/status、HMR WebSocket、Host 検査、旧アプリ） |
+
 - 共存期間（Phase 3–4）は http://localhost:8080 が旧 Inertia アプリ、8081 が新 SPA。`SANCTUM_STATEFUL_DOMAINS` は両方を含める。
   `frontend` が止まっていても nginx と 8080 は動く（8081 の画面だけ 502）。
+- **branch 切替・pull で `frontend/` が変わったら `docker compose restart frontend`**。切替中に `vite.config.ts` が
+  一時的に消えると Vite が config 無しで再起動し、復帰後も Vue plugin が読まれず `.vue` が 500 になる
+  （Compose は unhealthy でも自動再起動しない）。smoke test の `GET /src/App.vue` で検出できる。
+- ブラウザは `localhost` か `127.0.0.1` で開く。WSL の IP 等の別名だと Vite が Host を拒否（403）し、Sanctum の stateful 判定にも一致しない。
 
 - `frontend/.npmrc` の `engine-strict=true` により、Sail の Node（24.18 / npm 12）で `npm ci` すると `EBADENGINE` で失敗する（意図どおり）。
 - Node を上げるときは `.env.example` の `NODE_VERSION`、`compose.yaml` の既定値、`frontend/package.json` の `engines`/`packageManager`、CI の `node-version` を同時に変える。
