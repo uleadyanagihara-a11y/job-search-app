@@ -8,7 +8,6 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
-use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\Sanctum;
 
@@ -27,8 +26,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Vite::prefetch(concurrency: 3);
-
         $this->forceApplicationUrl();
 
         // 認証は Sanctum の SPA（session）認証だけを使い、API token は発行しない。
@@ -83,7 +80,7 @@ class AppServiceProvider extends ServiceProvider
             RateLimiter::for($name, fn (Request $request) => Limit::perMinute(6)->by($request->ip()));
         }
 
-        // 認証済み endpoint は user 単位。web/API の同じ操作の route は同じ limiter を共有する。
+        // 認証済み endpoint は user 単位。
         // auth の後に動く前提だが、auth 無しの route に付けても 500 にならないよう IP に倒す。
         // auth.confirm-password は現在 password を照合する endpoint（confirm-password、password 更新、
         // account 削除）で共有し、endpoint を変えて試行回数を稼げないようにする。

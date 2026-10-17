@@ -9,7 +9,9 @@ use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ValidateSignature;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
@@ -28,15 +30,6 @@ class EmailVerificationTest extends TestCase
 
         // redirect 先が APP_URL ではなく FRONTEND_URL 基準であることを区別できるようにする。
         config(['app.frontend_url' => self::FRONTEND_URL]);
-    }
-
-    public function test_email_verification_screen_can_be_rendered(): void
-    {
-        $user = User::factory()->unverified()->create();
-
-        $response = $this->actingAs($user)->get('/verify-email');
-
-        $response->assertStatus(200);
     }
 
     public function test_verification_mail_points_to_the_callback_path(): void
@@ -228,6 +221,25 @@ class EmailVerificationTest extends TestCase
         $this->assertFalse($user->fresh()->hasVerifiedEmail());
     }
 
+    public function test_session_holding_an_old_password_hash_is_logged_out(): void
+    {
+        $user = User::factory()->unverified()->create();
+        $oldPasswordHash = Auth::guard('web')->hashPasswordForCookie($user->password);
+
+        // 別端末（API 等）で password が変更された状態を再現する。
+        $user->forceFill(['password' => Hash::make('new-password')])->save();
+
+        $response = $this
+            ->actingAs($user)
+            ->withSession(['password_hash_web' => $oldPasswordHash])
+            ->get($this->verificationUrl($user));
+
+        // auth.session も redirectGuestsTo の redirect 先を使う。
+        $response->assertRedirect(self::FRONTEND_URL.'/login?verification_required=1');
+        $this->assertGuest();
+        $this->assertFalse($user->fresh()->hasVerifiedEmail());
+    }
+
     public function test_guest_with_invalid_signature_is_rejected_without_storing_intended(): void
     {
         $user = User::factory()->unverified()->create();
@@ -325,7 +337,7 @@ class EmailVerificationTest extends TestCase
     {
         // 実行順は route の記述順ではなく $middlewarePriority で決まり、`route:list -v` にも
         // 出ないため、並べ替え後の実際の順序を検査する（§5.4/§5.5.1）。
-        // Breeze の上書き等で bootstrap/app.php の priority 設定が消えると落ちる。
+        // bootstrap/app.php の priority 設定が消えると落ちる。
         $router = $this->app['router'];
         $middleware = $router->gatherRouteMiddleware(
             $router->getRoutes()->getByName('verification.verify'),

@@ -57,10 +57,9 @@ class LoginRequest extends FormRequest
     /**
      * Ensure the login request is not rate limited.
      *
-     * API は §5.5.3 どおり 429 rate_limited（Retry-After 付き）を返す。
-     * Inertia の Web 画面（POST /login）は撤去まで従来の 422（email 欄のエラー）のまま。
+     * §5.5.3 どおり 429 rate_limited（Retry-After 付き）を返す。
      *
-     * @throws ValidationException|ThrottleRequestsException
+     * @throws ThrottleRequestsException
      */
     public function ensureIsNotRateLimited(): void
     {
@@ -70,17 +69,8 @@ class LoginRequest extends FormRequest
 
         event(new Lockout($this));
 
-        $seconds = RateLimiter::availableIn($this->throttleKey());
-
-        if ($this->is('api/*')) {
-            throw new ThrottleRequestsException(headers: ['Retry-After' => $seconds]);
-        }
-
-        throw ValidationException::withMessages([
-            'email' => trans('auth.throttle', [
-                'seconds' => $seconds,
-                'minutes' => ceil($seconds / 60),
-            ]),
+        throw new ThrottleRequestsException(headers: [
+            'Retry-After' => RateLimiter::availableIn($this->throttleKey()),
         ]);
     }
 

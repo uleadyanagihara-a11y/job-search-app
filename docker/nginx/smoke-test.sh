@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# development Nginx の振り分けを curl で確認する（Phase 3–4 の preview 入口 :8081 と旧アプリ :80）。
+# development Nginx（http://localhost:${APP_PORT}）の振り分けを curl で確認する。
 # ホストで実行する: ./docker/nginx/smoke-test.sh
 # 前提: ./vendor/bin/sail up -d 済みで、frontend が healthy。
 set -uo pipefail
@@ -11,10 +11,8 @@ env_value() {
 }
 
 # compose.yaml と同じく、環境変数 → .env → 既定値の順に port を決める
-spa_port="${SPA_PREVIEW_PORT:-$(env_value SPA_PREVIEW_PORT)}"
-old_port="${APP_PORT:-$(env_value APP_PORT)}"
-SPA="http://localhost:${spa_port:-8081}"
-OLD="http://localhost:${old_port:-80}"
+app_port="${APP_PORT:-$(env_value APP_PORT)}"
+SPA="http://localhost:${app_port:-80}"
 
 failures=0
 body="$(mktemp)"
@@ -48,16 +46,19 @@ expect_not_spa() {
     fi
 }
 
-echo "SPA preview ($SPA) -> Vite"
+echo "SPA ($SPA) -> Vite"
 expect 'GET /' 200 text/html "$SPA/"
 grep -q '<div id="app">' "$body" && pass 'GET /: SPA の index.html' || fail 'GET /: SPA の index.html ではない'
 expect 'GET /profile (direct access)' 200 text/html "$SPA/profile"
+# 旧 Inertia の画面 route だった path も SPA が返す
+expect 'GET /login' 200 text/html "$SPA/login"
+grep -q '<div id="app">' "$body" && pass 'GET /login: SPA の index.html' || fail 'GET /login: SPA の index.html ではない'
 expect 'GET /reset-password/{token}?email=' 200 text/html "$SPA/reset-password/token?email=user%40example.com"
 expect 'GET /@vite/client' 200 text/javascript "$SPA/@vite/client"
 # Vue plugin が読まれていないと（vite.config.ts 無しで Vite が再起動した等）500 になる
 expect 'GET /src/App.vue (Vue plugin)' 200 text/javascript "$SPA/src/App.vue"
 
-echo "SPA preview ($SPA) -> Laravel"
+echo "SPA ($SPA) -> Laravel"
 expect 'GET /api/user (guest)' 401 application/json "$SPA/api/user" -H 'Accept: application/json'
 expect 'GET /api/存在しない' 404 application/json "$SPA/api/__smoke_not_found" -H 'Accept: application/json'
 expect_not_spa 'GET /api/存在しない'
@@ -86,10 +87,6 @@ echo "Host header"
 # Host を upstream 名に書き換えると Vite は 403 を返す（nginx は $http_host をそのまま渡す必要がある）
 rewritten="$(docker compose exec -T nginx wget -S -q -O /dev/null http://frontend:5173/ 2>&1 | sed -n 's/^ *HTTP\/1.1 \([0-9]*\).*/\1/p' | head -1)"
 [ "$rewritten" = 403 ] && pass 'Host: frontend:5173 は 403' || fail "Host: frontend:5173: status '${rewritten}' (expected 403)"
-
-echo "Legacy app ($OLD) -> Laravel/Inertia"
-expect 'GET /' 200 text/html "$OLD/"
-expect 'GET /login' 200 text/html "$OLD/login"
 
 echo
 if [ "$failures" -gt 0 ]; then

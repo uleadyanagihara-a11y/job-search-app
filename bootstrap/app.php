@@ -4,7 +4,6 @@ use App\Http\Middleware\Api\EnsureApiEmailIsVerified;
 use App\Http\Middleware\Api\EnsureApiGuest;
 use App\Http\Middleware\Api\EnsureApiPasswordIsConfirmed;
 use App\Http\Middleware\Api\EnsureApiSession;
-use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\ThrottleEmailVerificationCallback;
 use App\Support\Api\ApiExceptionRenderer;
 use App\Support\FrontendUrl;
@@ -12,7 +11,6 @@ use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Exceptions\InvalidSignatureException;
 use Illuminate\Routing\Middleware\ValidateSignature;
@@ -32,16 +30,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
 
         // password 変更時に他端末の session を無効化する。API（stateful）側は Sanctum の
-        // `sanctum.middleware.authenticate_session` が担当するため、web group にだけ
-        // `auth.session` を追加する。どちらも session の `password_hash_web` を照合する。
+        // `sanctum.middleware.authenticate_session` が担当するため、web group（メール認証 callback）
+        // にだけ `auth.session` を追加する。どちらも session の `password_hash_web` を照合する。
         $middleware->authenticateSessions();
 
-        // メール認証 callback に未ログインで来た場合は SPA の login へ。redirect()->guest() が
-        // callback URL を intended として session に保存し、login API が redirect_to で返す（§5.4）。
-        // それ以外の web route は Inertia 撤去（Phase 6）まで従来の login 画面へ向ける。
+        // 画面は SPA が持つため、未ログイン時の redirect 先は常に SPA の login。
+        // メール認証 callback では redirect()->guest() が callback URL を intended として session に
+        // 保存し、login API が redirect_to で返す（§5.4）。
         $middleware->redirectGuestsTo(fn (Request $request) => $request->routeIs('verification.verify')
             ? FrontendUrl::to('/login', ['verification_required' => 1])
-            : route('login'));
+            : FrontendUrl::to('/login'));
 
         // route の middleware は Kernel の $middlewarePriority で並べ替えられ、一覧に無いものは
         // web group の後ろ（実質最後）に回る。route に書いた順は効かず、`route:list -v` の表示も
@@ -64,12 +62,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.session' => EnsureApiSession::class,
         ]);
 
-        $middleware->web(append: [
-            HandleInertiaRequests::class,
-            AddLinkHeadersForPreloadedAssets::class,
-        ]);
-
-        //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
@@ -84,7 +76,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         // API route の例外は docs/inertia-removal-migration.md §5.1/§5.5 の
-        // JSON error contract に統一する。web(Inertia) route には手を出さない。
+        // JSON error contract に統一する。web route（メール認証 callback）には手を出さない。
         $exceptions->render(function (Throwable $e, Request $request) {
             if (! $request->is('api/*')) {
                 return null;
