@@ -762,6 +762,21 @@ frontend script は `lint` = `eslint . --max-warnings=0`, `typecheck` = `vue-tsc
 
 順序の入れ替えは禁止する。特に、Inertia の依存削除と Nginx の SPA fallback 切替は、API と SPA が完成する前に行わない。
 
+### 6.0 計画変更（2026-10-17）: 旧画面を維持せず撤去を前倒しする
+
+旧画面は Breeze の初期スキャフォールドで守るべき業務画面が無いため、旧画面の維持と新旧の UI 回帰比較は行わないと決定した。上の「順序の入れ替え禁止」はこの決定で置き換え、Phase 3 の途中で次を前倒しして実施した。
+
+- Phase 5 のうち development の入口切替: `docker/nginx/default.conf` の 80（http://localhost:8080）を 4.2.1 の振り分けにし、preview listener（8081）と `SPA_PREVIEW_PORT` を削除した。`SANCTUM_STATEFUL_DOMAINS` は `localhost:8080` だけにした。Nginx は引き続き resolver と変数付き `proxy_pass` で upstream を解決し、`frontend` への `depends_on` は付けない（`frontend` 停止中も API は動き、画面だけ 502 になる）。
+- Phase 6: 旧画面 route（`routes/auth.php` と `routes/web.php` の画面/mutation）、旧 controller、`HandleInertiaRequests`、`app.blade.php`、`resources/js`・`resources/css`、ルートの Node manifest と Vite/Tailwind/PostCSS/jsconfig を削除し、`inertiajs/inertia-laravel`・`tightenco/ziggy`・`laravel/breeze` を Composer から外した。5.4 の callback は `routes/web.php` に残し、未ログイン時の redirect 先は常に SPA の login にした。旧画面の feature test は API test で担保済みのため削除し、旧 web session の password hash 失効テストは callback で確認する形に置き換えた。
+
+これにより、SPA の画面が移植されるまで（Phase 4 完了まで）placeholder 以外の画面は無い。残りの扱いは次のとおり。
+
+- Phase 3: 未了の Tailwind/font（手順 4〜6）と test toolchain（手順 11〜12）を続ける。手順 4 で移植する Tailwind 設定・CSS は、削除前のルート `tailwind.config.js` / `postcss.config.js` / `resources/css/app.css` を git 履歴から参照する。
+- Phase 4: 移植順は維持する。完了条件のうち「旧 Inertia 画面と新 SPA の UI 回帰確認」は削除する。旧画面の見た目は参考にとどめる。
+- Phase 5: production の配信（`frontend/dist` を Nginx image へ、`/assets/*` の cache、`index.html` の no-cache と fallback）は production 構成を作る時点で行う。
+- Phase 6: 完了。
+- Phase 7・10 章: 旧画面との比較を前提とする項目は適用しない。
+
 ### Phase 0: 契約を固定する
 
 1. 本文書の API path、status、error schema、認証方式をレビューして確定する。
@@ -821,7 +836,7 @@ frontend script は `lint` = `eslint . --max-warnings=0`, `typecheck` = `vue-tsc
 
 各画面で `useForm` を型付き API form に、`Link` を router link/action に、props を route/API/auth store に置換する。移植する Vue SFC はその単位で `<script setup lang="ts">` にし、implicit `any`、無検証の API cast、恒久的な `@ts-ignore` を残さない。
 
-完了条件: 3.4 の全操作について SPA の lint/typecheck/component/E2E test と Laravel API test が成功し、ブラウザ上で 422 error が各 field に表示される。加えて、旧 Inertia 画面と新 SPA の UI 回帰確認が完了し、responsive、hover/focus/disabled、form control、dynamic class に実用上の差分がない。この条件を満たすまで Phase 5 へ進まない。
+完了条件: 3.4 の全操作について SPA の lint/typecheck/component/E2E test と Laravel API test が成功し、ブラウザ上で 422 error が各 field に表示される。（旧画面との UI 回帰確認は 6.0 の計画変更で削除した）
 
 ### Phase 5: Nginx の入口を SPA/API に切り替える
 

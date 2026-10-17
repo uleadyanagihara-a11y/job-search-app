@@ -2,9 +2,9 @@
 
 ## プロジェクト概要
 
-求職情報サイト（Job Search App）。Laravel 13 + Inertia v2 + Vue 3 の SPA。
-認証は Laravel Breeze（Vue/Inertia stack, TypeScript/ESLint 無し）。
-現時点ではまだ Breeze の初期スキャフォールドのみで、求人・応募まわりのドメインは未実装。
+求職情報サイト（Job Search App）。Laravel 13 の API（Sanctum の Cookie 認証）+ Vue 3 / TypeScript の SPA（`frontend/`）。
+Inertia・Breeze の旧画面は撤去済み（2026-10-17）。Laravel は API とメール認証 callback だけを持ち、画面は持たない。
+認証・profile の API はあるが SPA の画面は移植中（router は PlaceholderView）。求人・応募まわりのドメインは未実装。
 
 ## 開発環境（最重要）
 
@@ -17,18 +17,15 @@
 | 停止 | `./vendor/bin/sail down` |
 | artisan | `./vendor/bin/sail artisan ...` |
 | composer | `./vendor/bin/sail composer ...` |
-| npm | `./vendor/bin/sail npm ...` |
-| フロント dev サーバ | `./vendor/bin/sail npm run dev` |
-| フロントビルド | `./vendor/bin/sail npm run build` |
 | PHP 整形 | `./vendor/bin/sail pint` |
 | テスト | `./vendor/bin/sail test`（PHPUnit） |
 | コンテナ状態確認 | `./vendor/bin/sail ps` |
 
 git はホストでネイティブに動く（Sail は不要）。
 
-### 新 SPA（`frontend/`）
+### SPA（`frontend/`）
 
-Inertia 撤去後の Vue SPA（計画は `docs/inertia-removal-migration.md`）。ルートの `package.json` / Sail の Node とは独立しており、
+Vue SPA（経緯と API 契約は `docs/inertia-removal-migration.md`）。Sail の Node とは独立しており、
 **Compose の `frontend` service（`node:${NODE_VERSION}-bookworm-slim`、現在 24.22.0 / npm 11.19.1）でだけ npm を実行する**。
 `sail run` は `laravel.test` 内で実行されてしまうため、ここは `docker compose run` を使う。
 
@@ -37,12 +34,11 @@ Inertia 撤去後の Vue SPA（計画は `docs/inertia-removal-migration.md`）�
 | 依存インストール（初回・lock 更新後） | `docker compose run --rm --no-deps frontend npm ci` |
 | lint / 型検査 / build | `docker compose run --rm --no-deps frontend npm run lint`（`typecheck` / `build` も同様） |
 | Vite dev サーバ | `./vendor/bin/sail up -d` で `frontend` service として起動（`frontend:5173`、host には非公開） |
-| ブラウザ確認 | http://localhost:8081（nginx の preview 入口。画面/HMR は Vite、`/api` `/sanctum` `/auth/email/verify` `/storage` `/up` は Laravel） |
+| ブラウザ確認 | http://localhost:8080（nginx。画面/HMR は Vite、`/api` `/sanctum` `/auth/email/verify` `/storage` `/up` は Laravel） |
 
-| Nginx 振り分けの確認 | `./docker/nginx/smoke-test.sh`（ホストの curl で実行。path ごとの upstream/status、HMR WebSocket、Host 検査、旧アプリ） |
+| Nginx 振り分けの確認 | `./docker/nginx/smoke-test.sh`（ホストの curl で実行。path ごとの upstream/status、HMR WebSocket、Host 検査） |
 
-- 共存期間（Phase 3–4）は http://localhost:8080 が旧 Inertia アプリ、8081 が新 SPA。`SANCTUM_STATEFUL_DOMAINS` は両方を含める。
-  `frontend` が止まっていても nginx と 8080 は動く（8081 の画面だけ 502）。
+- `frontend` が止まっていても nginx と API は動く（画面だけ 502）。
 - **branch 切替・pull で `frontend/` が変わったら `docker compose restart frontend`**。切替中に `vite.config.ts` が
   一時的に消えると Vite が config 無しで再起動し、復帰後も Vue plugin が読まれず `.vue` が 500 になる
   （Compose は unhealthy でも自動再起動しない）。smoke test の `GET /src/App.vue` で検出できる。
@@ -58,7 +54,6 @@ Inertia 撤去後の Vue SPA（計画は `docs/inertia-removal-migration.md`）�
 `.env` で以下をデフォルトから変更済み:
 
 - `APP_PORT=8080`（http://localhost:8080）
-- `VITE_PORT=5174`
 - `FORWARD_DB_PORT=3308`
 - `FORWARD_REDIS_PORT=6380`
 - `FORWARD_MAILPIT_PORT=1026` / `FORWARD_MAILPIT_DASHBOARD_PORT=8026`（http://localhost:8026）
@@ -69,8 +64,8 @@ Inertia 撤去後の Vue SPA（計画は `docs/inertia-removal-migration.md`）�
 
 ### やらないこと
 
-- ローカル php / node / composer 前提のコマンドを書かない（必ず `./vendor/bin/sail` 経由）
-- `npm install` 等をホストで直接叩かない（`node_modules` はコンテナ内 Node バージョン前提）
+- ローカル php / node / composer 前提のコマンドを書かない（PHP 系は `./vendor/bin/sail`、npm は `frontend` service 経由）
+- `npm install` 等をホストや `laravel.test` で叩かない（`node_modules` は `frontend` service の Node バージョン前提）
 
 ## DB / タイムゾーン方針
 
@@ -104,29 +99,18 @@ Inertia 撤去後の Vue SPA（計画は `docs/inertia-removal-migration.md`）�
   MySQL 側には反映されず、アプリが認証エラーになる。
   反映するには `sail down -v`（全データ削除）→ `up`、または SQL で手動変更する。
 
-## 既知の注意点
-
-- この Breeze バージョン（v2 系）が生成する `resources/js/app.js` には
-  `import './bootstrap';` が残るが、対応する `resources/js/bootstrap.js` 自体は
-  スタブに含まれておらず未使用の import になっていたため削除済み（axios は不使用）。
-  Breeze を再インストール/上書きする際は再発する可能性がある。
-
 ## CI（GitHub Actions）
 
-`.github/workflows/ci.yml` で Pint / Composer audit / Laravel テスト（MySQL 8.4 + Redis）/ Vite build を実行する。
+`.github/workflows/ci.yml` で Pint / Composer audit / Laravel テスト（MySQL 8.4 + Redis）/ `frontend/` の lint・typecheck・build を実行する。
 CI は **git 管理外のファイルが無いクリーンな checkout** で動くため、ローカルで通っても落ちることがある。
 
 - PHP は `setup-php` の `8.5`（8.5 系最新）だが、パッチ版を固定できないため workflow の `env.PHP_MIN_VERSION` で下限を検査する。
   PHP 本体のセキュリティリリースが出たら、ここを上げ、ローカルは `./vendor/bin/sail build --no-cache laravel.test` → `./vendor/bin/sail up -d` で Sail イメージを作り直す。
 - Composer audit は `composer.lock` に対して実行するため、新しい advisory が公開されるとコード変更なしでも落ちる（意図どおり）。
-
 - テストは実 Redis に接続する（`RedisVerificationTest`）。CI では `services:` で Redis を起動している。
-- Inertia の画面を描画するテストは `public/build/manifest.json` が必要。CI の test ジョブで先に `npm run build` している
-  （Inertia 撤去後、画面系テストが無くなればこの工程は不要）。
-- `resources/js/app.js` が `vendor/tightenco/ziggy` を import するため、build 前に `composer install` が必要。
 - MySQL は `services:` だと起動フラグを渡せないため `docker run` で起動し、compose.yaml と同じ
   文字コード・照合順序・タイムゾーンを指定している。
-- テストやビルド手順を足すときは、`vendor/` `node_modules/` `public/build/` などが無い状態
+- テストやビルド手順を足すときは、`vendor/` `frontend/node_modules/` `frontend/dist/` などが無い状態
   （`git worktree add` 等）でも通るか確認する。
 
 ### 依存更新（Dependabot）
@@ -138,7 +122,6 @@ minor・patch はエコシステムごとに 1 PR にまとめ、major は個別
 - マージ後、ローカルは `./vendor/bin/sail composer install` / `docker compose run --rm --no-deps frontend npm ci` で反映する（npm は `docker compose restart frontend` も）。
 - `typescript` の minor/major は ignore している（上記の peer 上限のため）。外すときは dependabot.yml も直す。
 - PHP 本体・Node・Docker イメージ（`compose.yaml` の各タグ）は Dependabot の対象外。手動で上げる。
-- ルートの `package.json`（Inertia 用、撤去予定）は対象にしていない。
 
 ## コーディング規約
 
