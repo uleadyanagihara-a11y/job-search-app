@@ -122,6 +122,11 @@ jobs:
           php -r 'echo "php ", PHP_VERSION, " (minimum ", getenv("PHP_MIN_VERSION"), ")", PHP_EOL;'
           php -r 'exit(version_compare(PHP_VERSION, getenv("PHP_MIN_VERSION"), ">=") ? 0 : 1);'
 
+      # .env が無いと phpdotenv の読み込み失敗が php artisan test でテストごとの warning として出る。
+      # 設定値は上の env で渡すため、中身は空でよい（.env.example をコピーすると env 以外の値が混ざる）。
+      - name: Create empty .env
+        run: touch .env
+
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
