@@ -49,6 +49,8 @@ Vue SPA（経緯と API 契約は `docs/inertia-removal-migration.md`）。Sail 
 - `node_modules` は bind mount（`frontend/node_modules`）なので、ホストの VSCode の Vue 拡張・ESLint がそのまま使える。
 - `typescript` は `typescript-eslint` の peer 上限（`<6.1.0`）のため `~6.0.3` に固定している。
 - CSS は Tailwind CSS 3（`frontend/tailwind.config.js`）を PostCSS（`frontend/postcss.config.js`）で処理する。`@tailwindcss/vite` は入れない。Tailwind 4 への major は Dependabot で ignore している。
+  3 系の最終版（3.4.19）は依存の `braces` 等に npm audit の advisory が残るが、許容している（理由・前提・再評価は `docs/accepted-vulnerabilities.md`）。
+  `overrides` で推移的依存を強制更新しない。許容する advisory は `frontend/audit-accepted.json` に載せ、CI の `npm audit` job が照合する。
 - Figtree は `frontend/src/assets/fonts/` に self-host している（`@font-face` は `frontend/src/assets/app.css`）。外部 font CDN は使わない。
 
 ### ポート（他プロジェクトと同居する前提でずらしてある）
@@ -103,7 +105,10 @@ Vue SPA（経緯と API 契約は `docs/inertia-removal-migration.md`）。Sail 
 
 ## CI（GitHub Actions）
 
-`.github/workflows/ci.yml` で Pint / Composer audit / Laravel テスト（MySQL 8.4 + Redis）/ `frontend/` の lint・typecheck・build を実行する。
+`.github/workflows/ci.yml` で Pint / Composer audit / npm audit（`frontend/`、許容リスト照合）/ Laravel テスト（MySQL 8.4 + Redis）/ `frontend/` の lint・typecheck・build を実行する。
+PR・main への push に加え、毎週月曜 9:00 JST の schedule でも走る（コード変更なしで新しい advisory・修正版の公開を検出するため）。
+
+- PR のコードは信頼しない前提で動かす: `pull_request_target` は使わない、token は `contents: read`、checkout は `persist-credentials: false`、secrets を参照しない、全 job に `timeout-minutes` を付ける。job を足すときもこれを守る。
 CI は **git 管理外のファイルが無いクリーンな checkout** で動くため、ローカルで通っても落ちることがある。
 
 - PHP は `setup-php` の `8.5`（8.5 系最新）だが、パッチ版を固定できないため workflow の `env.PHP_MIN_VERSION` で下限を検査する。

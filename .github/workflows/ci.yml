@@ -1,12 +1,20 @@
 name: CI
 
+# PR のコード（fork・Dependabot を含む）は信頼しない前提で動かす。
+# - pull_request_target は使わない（PR のコードを base の権限・secrets で動かさないため）。
+# - token は contents: read だけにし、checkout の認証情報も残さない（persist-credentials: false）。
+# - secrets を参照しない。job ごとに timeout-minutes を付け、無制限に実行させない。
+# - 外部からの PR の実行承認は GitHub の設定（docs/accepted-vulnerabilities.md の「CI の実行制限」）で行う。
 on:
   push:
     branches: [main]
   pull_request:
+  # コードを変えなくても、新しい advisory や修正版の公開を audit で検出する（Dependabot と同じ月曜 9:00 JST）
+  schedule:
+    - cron: '0 0 * * 1'
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -23,8 +31,11 @@ jobs:
   pint:
     name: Pint
     runs-on: ubuntu-26.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -45,8 +56,11 @@ jobs:
   composer-audit:
     name: Composer audit
     runs-on: ubuntu-26.04
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -58,9 +72,32 @@ jobs:
       - name: Composer audit
         run: composer audit --locked --no-interaction
 
+  npm-audit:
+    name: npm audit (frontend/)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.22.0'
+
+      # package-lock.json だけを見るので node_modules は不要（npm ci しない＝依存の install script も動かない）。
+      # 許容済みの advisory（audit-accepted.json）以外が出たとき、修正版が公開されたときに落ちる。
+      # 理由と再評価の手順は docs/accepted-vulnerabilities.md。
+      - name: npm audit
+        run: npm run audit:check
+
   test:
     name: Laravel tests (MySQL)
     runs-on: ubuntu-26.04
+    timeout-minutes: 20
     env:
       # ローカル（.env.example / CLAUDE.md）と同じ値に揃える
       APP_ENV: testing
@@ -92,6 +129,8 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # services: では mysqld の起動フラグを渡せないため docker run で起動する。
       # compose.yaml の mysql command と同じ文字コード・照合順序・タイムゾーン。
@@ -138,11 +177,14 @@ jobs:
   frontend:
     name: Frontend (frontend/)
     runs-on: ubuntu-26.04
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # compose.yaml の frontend service（node:${NODE_VERSION}-bookworm-slim）と同じ Node
       - uses: actions/setup-node@v7

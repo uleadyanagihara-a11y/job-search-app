@@ -12,7 +12,8 @@
         "build": "vite build",
         "preview": "vite preview",
         "lint": "eslint . --max-warnings=0",
-        "typecheck": "vue-tsc --build"
+        "typecheck": "vue-tsc --build",
+        "audit:check": "node scripts/check-npm-audit.mjs"
     },
     "dependencies": {
         "vue": "^3.5.44",
