@@ -87,7 +87,7 @@ Vue Pages
 
 | 現在の画面 GET | 呼び出し元 | 現在の props | 移行後 |
 | --- | --- | --- | --- |
-| `/` | `routes/web.php` | `canLogin`, `canRegister`, `laravelVersion`, `phpVersion` | Vue の `/` route。認証状態だけ API から取得。version 表示は削除または専用公開 API に限定 |
+| `/` | `routes/web.php` | `canLogin`, `canRegister`, `laravelVersion`, `phpVersion` | 移植しない（6.1）。Vue の `/` route は `/dashboard` への redirect にし、未ログインは guard で login へ。version 表示は削除 |
 | `/dashboard` | `routes/web.php` | 共通 `auth.user` | Vue の `/dashboard` route + router guard |
 | `/profile` | `ProfileController::edit` | `mustVerifyEmail`, `status`, 共通 `auth.user` | Vue の `/profile` route + `GET /api/profile` |
 | `/register` | `RegisteredUserController::create` | 共通 props | Vue の `/register` route |
@@ -445,7 +445,7 @@ validation 以外の error は次の形式とする。production response に例
 | `GET /api/user` | `auth:sanctum` | `200 { data: user }` | auth store を初期化。401 は guest として扱う |
 | `POST /api/auth/register` | `api.guest`, throttle, `api.session` | `201 { data: user, meta: { redirect_to } }` | auth store 更新後 dashboard へ |
 | `POST /api/auth/login` | `api.guest`, LoginRequest limiter, `api.session` | `200 { data: user, meta: { redirect_to } }` | allowlist 済み intended SPA URL または dashboard へ |
-| `POST /api/auth/logout` | `auth:sanctum`, `api.session` | `204` | auth store 破棄後 `/` へ |
+| `POST /api/auth/logout` | `auth:sanctum`, `api.session` | `204` | auth store 破棄後 login へ（6.1） |
 | `POST /api/auth/forgot-password` | `api.guest`, throttle | `200 { code, message }` | 同じ画面に message を表示 |
 | `POST /api/auth/reset-password` | `api.guest`, throttle | `200 { code, message }` | login 画面へ移動し message を渡す |
 | `POST /api/auth/email/verification-notification` | `auth:sanctum`/throttle | `200 { code, message }` | 同じ画面に message を表示 |
@@ -453,7 +453,7 @@ validation 以外の error は次の形式とする。production response に例
 | `GET /api/profile` | `auth:sanctum` | `200 { data, meta }` | profile form 初期化 |
 | `PATCH /api/profile` | `auth:sanctum` | `200 { data: user }` | auth store も同じ user で更新 |
 | `PUT /api/profile/password` | `auth:sanctum` | `204` | form reset + success 表示 |
-| `DELETE /api/profile` | `auth:sanctum`, `api.session` | `204` | auth store 破棄後 `/` へ |
+| `DELETE /api/profile` | `auth:sanctum`, `api.session` | `204` | auth store 破棄後 login へ（6.1） |
 
 補足事項:
 
@@ -736,7 +736,7 @@ $middleware->prependToPriorityList(
 | --- | --- | --- |
 | unit | Vitest | API client、auth store、form composable、error code mapping |
 | component | Vue Test Utils 2 + jsdom + Vitest | form入力、processing、422 field error、focus、component event |
-| router | Vue Router 4 `createMemoryHistory()` + Vitest | guest/auth/verified/password-confirmed guard、route param/query、not-found、intended URL |
+| router | Vue Router 4 `createMemoryHistory()` + Vitest | guest/auth/verified/password-confirmed guard、`meta.access` 省略時の auth 扱い（6.1）、route param/query、not-found、intended URL |
 | E2E | Playwright | Nginx 単一入口、Cookie/CSRF、direct access/reload、mail link、主要業務フロー |
 | UI 回帰 | Playwright screenshot | 主要画面の responsive/state/font 差分 |
 
@@ -776,6 +776,16 @@ frontend script は `lint` = `eslint . --max-warnings=0`, `typecheck` = `vue-tsc
 - Phase 5: production の配信（`frontend/dist` を Nginx image へ、`/assets/*` の cache、`index.html` の no-cache と fallback）は production 構成を作る時点で行う。
 - Phase 6: 完了。
 - Phase 7・10 章: 旧画面との比較を前提とする項目は適用しない。
+
+### 6.1 計画変更（2026-10-22）: 公開の Welcome 画面を廃止し、画面は原則ログイン必須にする
+
+アプリの情報はログインした user にだけ見せると決定した。未ログインで保護された画面を開いた場合は login（`?redirect=` に元の path）へ送る。
+
+- 公開する画面は guest 用の認証画面（login、register、forgot-password、reset-password）と not-found だけにする。旧 `/` の Welcome は移植せず、SPA の `/`（route 名 `home`）は `/dashboard` への redirect にする。未ログインなら dashboard の guard で login へ送られる。
+- router は default deny にする。`meta.access` を省略した route は `auth`（ログイン必須）として扱い、公開する route だけ `public`/`guest` を明示する。判定は `frontend/src/router/guards.ts` の `routeAccess()` に集約し、guard と 401 handler（`frontend/src/main.ts`）の両方が使う。
+- logout と account 削除の後は、auth store を破棄して `/` ではなく login へ送る（`/` は dashboard へ redirect し、さらに login へ送られて不要な `?redirect=/dashboard` が付くため）。
+- router guard は表示の振り分けだけを担う。データの保護は API の `auth:sanctum` が担うため、求人・応募などの業務 API も公開を明示的に決めたもの以外は `auth:sanctum` を付ける。
+- Phase 4 の移植順から「public/static: Welcome」を削除する。
 
 ### Phase 0: 契約を固定する
 
@@ -826,13 +836,12 @@ frontend script は `lint` = `eslint . --max-warnings=0`, `typecheck` = `vue-tsc
 
 ### Phase 4: 画面を新 SPA へ移植する
 
-移植順も固定する。
+移植順も固定する（Welcome は 6.1 の計画変更で移植しない）。
 
-1. public/static: Welcome
-2. guest auth: Login、Register、ForgotPassword、ResetPassword
-3. authenticated shell: Dashboard、navigation、Logout
-4. auth state: VerifyEmail、ConfirmPassword
-5. profile: profile 更新、password 更新、account 削除
+1. guest auth: Login、Register、ForgotPassword、ResetPassword
+2. authenticated shell: Dashboard、navigation、Logout
+3. auth state: VerifyEmail、ConfirmPassword
+4. profile: profile 更新、password 更新、account 削除
 
 各画面で `useForm` を型付き API form に、`Link` を router link/action に、props を route/API/auth store に置換する。移植する Vue SFC はその単位で `<script setup lang="ts">` にし、implicit `any`、無検証の API cast、恒久的な `@ts-ignore` を残さない。
 
