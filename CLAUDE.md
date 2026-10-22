@@ -110,6 +110,8 @@ CI は **git 管理外のファイルが無いクリーンな checkout** で動�
 - テストは実 Redis に接続する（`RedisVerificationTest`）。CI では `services:` で Redis を起動している。
 - MySQL は `services:` だと起動フラグを渡せないため `docker run` で起動し、compose.yaml と同じ
   文字コード・照合順序・タイムゾーンを指定している。
+- runner の OS は `ubuntu-latest` ではなく `ubuntu-26.04` に固定している（`latest` は GitHub 側の移行で黙って OS が変わるため）。
+  次の Ubuntu LTS の runner が GA になったら、各 job の `runs-on` をまとめて上げる。
 - テストやビルド手順を足すときは、`vendor/` `frontend/node_modules/` `frontend/dist/` などが無い状態
   （`git worktree add` 等）でも通るか確認する。
 
@@ -121,7 +123,9 @@ minor・patch はエコシステムごとに 1 PR にまとめ、major は個別
 - PR では上記 CI（Laravel テスト・frontend の build 等）が走る。**自動マージはしない。CI が通ったことを確認して手動でマージする**。
 - マージ後、ローカルは `./vendor/bin/sail composer install` / `docker compose run --rm --no-deps frontend npm ci` で反映する（npm は `docker compose restart frontend` も）。
 - `typescript` の minor/major は ignore している（上記の peer 上限のため）。外すときは dependabot.yml も直す。
-- PHP 本体・Node・Docker イメージ（`compose.yaml` の各タグ）は Dependabot の対象外。手動で上げる。
+- PHP 本体・Node・Docker イメージ（`compose.yaml` の各タグ）・CI の runner OS は Dependabot の対象外。手動で上げる。
+- GitHub Actions の major 更新（例: `actions/checkout`）は、action の実行 Node が廃止される前に入れる。
+  古いままだと CI の Annotations に「Node.js NN is deprecated」の warning が出る。
 
 ## コーディング規約
 
