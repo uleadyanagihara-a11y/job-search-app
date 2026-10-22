@@ -17,12 +17,14 @@ env:
   # PHP 本体のセキュリティリリースが出たら、ローカルの Sail イメージ再ビルドと合わせてここを上げる。
   PHP_MIN_VERSION: '8.5.12'
 
+# runs-on は ubuntu-latest ではなく版を固定する（ubuntu-latest は GitHub 側の都合で OS が切り替わるため）。
+# runs-on では env を参照できないので、上げるときは各 job の runs-on をまとめて変える。
 jobs:
   pint:
     name: Pint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -42,9 +44,9 @@ jobs:
 
   composer-audit:
     name: Composer audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -58,7 +60,7 @@ jobs:
 
   test:
     name: Laravel tests (MySQL)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     env:
       # ローカル（.env.example / CLAUDE.md）と同じ値に揃える
       APP_ENV: testing
@@ -89,7 +91,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # services: では mysqld の起動フラグを渡せないため docker run で起動する。
       # compose.yaml の mysql command と同じ文字コード・照合順序・タイムゾーン。
@@ -135,15 +137,15 @@ jobs:
 
   frontend:
     name: Frontend (frontend/)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # compose.yaml の frontend service（node:${NODE_VERSION}-bookworm-slim）と同じ Node
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24.22.0'
           cache: npm
