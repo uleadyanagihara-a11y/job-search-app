@@ -2,6 +2,7 @@ import { createApp } from 'vue';
 import { onUnauthenticated } from '@/api/client';
 import App from '@/App.vue';
 import { router } from '@/router';
+import { routeAccess } from '@/router/guards';
 import { useAuthStore } from '@/stores/auth';
 
 // session 切れ等で API が 401 を返したら、auth store を破棄して login へ送る。
@@ -10,7 +11,7 @@ onUnauthenticated(() => {
 
     const current = router.currentRoute.value;
 
-    if (current.meta.access === 'auth') {
+    if (routeAccess(current) === 'auth') {
         void router.replace({ name: 'login', query: { redirect: current.fullPath } });
     }
 });

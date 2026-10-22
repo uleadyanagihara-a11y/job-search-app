@@ -6,8 +6,11 @@ import PlaceholderView from '@/views/PlaceholderView.vue';
 declare module 'vue-router' {
     interface RouteMeta {
         title: string;
-        /** public: 誰でも / guest: 未ログインのみ / auth: ログイン必須 */
-        access: 'public' | 'guest' | 'auth';
+        /**
+         * public: 誰でも / guest: 未ログインのみ / auth: ログイン必須。
+         * 省略時は auth（default deny）。判定は routeAccess() を通す。
+         */
+        access?: 'public' | 'guest' | 'auth';
         /** メール認証済みのみ（旧 `verified` middleware） */
         verified?: boolean;
     }
@@ -17,8 +20,11 @@ const APP_NAME = 'Job Search App';
 
 // 画面は Phase 4 で移植するまで PlaceholderView で受ける。
 // route 名は旧 Laravel の route 名に揃える。
+// アプリの情報はログイン後にだけ見せる。公開してよいのは認証画面と 404 だけで、
+// それ以外は access を省略して（= auth）guard に login へ送らせる。
 export const routes: RouteRecordRaw[] = [
-    { path: '/', name: 'home', component: PlaceholderView, meta: { title: 'Welcome', access: 'public' } },
+    // 公開の Welcome 画面は持たない。未ログインなら dashboard の guard で login へ送られる。
+    { path: '/', name: 'home', redirect: { name: 'dashboard' } },
     { path: '/login', name: 'login', component: PlaceholderView, meta: { title: 'Log in', access: 'guest' } },
     { path: '/register', name: 'register', component: PlaceholderView, meta: { title: 'Register', access: 'guest' } },
     {
