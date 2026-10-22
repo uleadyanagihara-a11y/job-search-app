@@ -113,8 +113,12 @@ Inertia 撤去後の Vue SPA（計画は `docs/inertia-removal-migration.md`）�
 
 ## CI（GitHub Actions）
 
-`.github/workflows/ci.yml` で Pint / Laravel テスト（MySQL 8.4 + Redis）/ Vite build を実行する。
+`.github/workflows/ci.yml` で Pint / Composer audit / Laravel テスト（MySQL 8.4 + Redis）/ Vite build を実行する。
 CI は **git 管理外のファイルが無いクリーンな checkout** で動くため、ローカルで通っても落ちることがある。
+
+- PHP は `setup-php` の `8.5`（8.5 系最新）だが、パッチ版を固定できないため workflow の `env.PHP_MIN_VERSION` で下限を検査する。
+  PHP 本体のセキュリティリリースが出たら、ここを上げ、ローカルは `./vendor/bin/sail build --no-cache laravel.test` → `./vendor/bin/sail up -d` で Sail イメージを作り直す。
+- Composer audit は `composer.lock` に対して実行するため、新しい advisory が公開されるとコード変更なしでも落ちる（意図どおり）。
 
 - テストは実 Redis に接続する（`RedisVerificationTest`）。CI では `services:` で Redis を起動している。
 - Inertia の画面を描画するテストは `public/build/manifest.json` が必要。CI の test ジョブで先に `npm run build` している
@@ -124,6 +128,17 @@ CI は **git 管理外のファイルが無いクリーンな checkout** で動�
   文字コード・照合順序・タイムゾーンを指定している。
 - テストやビルド手順を足すときは、`vendor/` `node_modules/` `public/build/` などが無い状態
   （`git worktree add` 等）でも通るか確認する。
+
+### 依存更新（Dependabot）
+
+`.github/dependabot.yml` で composer（ルート）/ npm（`frontend/`）/ GitHub Actions を毎週月曜 9:00（JST）に確認し、更新 PR を作る。
+minor・patch はエコシステムごとに 1 PR にまとめ、major は個別 PR。
+
+- PR では上記 CI（Laravel テスト・frontend の build 等）が走る。**自動マージはしない。CI が通ったことを確認して手動でマージする**。
+- マージ後、ローカルは `./vendor/bin/sail composer install` / `docker compose run --rm --no-deps frontend npm ci` で反映する（npm は `docker compose restart frontend` も）。
+- `typescript` の minor/major は ignore している（上記の peer 上限のため）。外すときは dependabot.yml も直す。
+- PHP 本体・Node・Docker イメージ（`compose.yaml` の各タグ）は Dependabot の対象外。手動で上げる。
+- ルートの `package.json`（Inertia 用、撤去予定）は対象にしていない。
 
 ## コーディング規約
 
