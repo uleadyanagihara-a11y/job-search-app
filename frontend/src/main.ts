@@ -1,3 +1,4 @@
+import '@/assets/app.css';
 import { createApp } from 'vue';
 import { onUnauthenticated } from '@/api/client';
 import App from '@/App.vue';

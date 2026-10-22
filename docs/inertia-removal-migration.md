@@ -771,7 +771,7 @@ frontend script は `lint` = `eslint . --max-warnings=0`, `typecheck` = `vue-tsc
 
 これにより、SPA の画面が移植されるまで（Phase 4 完了まで）placeholder 以外の画面は無い。残りの扱いは次のとおり。
 
-- Phase 3: 未了の Tailwind/font（手順 4〜6）と test toolchain（手順 11〜12）を続ける。手順 4 で移植する Tailwind 設定・CSS は、削除前のルート `tailwind.config.js` / `postcss.config.js` / `resources/css/app.css` を git 履歴から参照する。
+- Phase 3: 未了の test toolchain（手順 11〜12）を続ける。Tailwind/font（手順 4〜6）は完了（2026-10-22）。Tailwind 設定・CSS は削除前のルート `tailwind.config.js` / `postcss.config.js` / `resources/css/app.css` を git 履歴から移植し、Figtree は `@fontsource-variable/figtree` の latin / latin-ext の variable WOFF2（wght 300–900）と OFL を `frontend/src/assets/fonts/` に置いた（npm 依存にはしない）。
 - Phase 4: 移植順は維持する。完了条件のうち「旧 Inertia 画面と新 SPA の UI 回帰確認」は削除する。旧画面の見た目は参考にとどめる。
 - Phase 5: production の配信（`frontend/dist` を Nginx image へ、`/assets/*` の cache、`index.html` の no-cache と fallback）は production 構成を作る時点で行う。
 - Phase 6: 完了。

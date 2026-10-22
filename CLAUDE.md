@@ -48,6 +48,8 @@ Vue SPA（経緯と API 契約は `docs/inertia-removal-migration.md`）。Sail 
 - Node を上げるときは `.env.example` の `NODE_VERSION`、`compose.yaml` の既定値、`frontend/package.json` の `engines`/`packageManager`/`@types/node`（major を Node に合わせる。Dependabot は major を ignore）、CI の `node-version` を同時に変える。
 - `node_modules` は bind mount（`frontend/node_modules`）なので、ホストの VSCode の Vue 拡張・ESLint がそのまま使える。
 - `typescript` は `typescript-eslint` の peer 上限（`<6.1.0`）のため `~6.0.3` に固定している。
+- CSS は Tailwind CSS 3（`frontend/tailwind.config.js`）を PostCSS（`frontend/postcss.config.js`）で処理する。`@tailwindcss/vite` は入れない。Tailwind 4 への major は Dependabot で ignore している。
+- Figtree は `frontend/src/assets/fonts/` に self-host している（`@font-face` は `frontend/src/assets/app.css`）。外部 font CDN は使わない。
 
 ### ポート（他プロジェクトと同居する前提でずらしてある）
 
