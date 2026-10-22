@@ -1,0 +1,62 @@
+# 依存の更新を毎週確認し、更新 PR を作成する。
+# PR では CI（.github/workflows/ci.yml）が Laravel テスト・frontend の build などを実行する。
+# 自動マージはしない。CI が通ったことを確認してから手動でマージする。
+#
+# セキュリティ更新（脆弱性のある依存の更新）は、GitHub の設定で
+# Dependabot security updates を有効にすると、この週次スケジュールとは別に随時 PR が作られる。
+version: 2
+
+updates:
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: composer
+    groups:
+      # minor / patch はまとめて 1 PR にする。major は個別 PR。
+      composer-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: npm
+    groups:
+      npm-minor-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # typescript-eslint の peer 上限（<6.1.0）のため ~6.0.x に固定している（CLAUDE.md 参照）。
+      # typescript-eslint が対応したら、この ignore を外して手動で上げる。
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-major
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Asia/Tokyo
+    commit-message:
+      prefix: ci
+    groups:
+      github-actions:
+        patterns:
+          - '*'

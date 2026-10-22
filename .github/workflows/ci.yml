@@ -12,6 +12,11 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # setup-php は 8.5 系の最新を入れるが、パッチ版は固定できないため下限を検査する。
+  # PHP 本体のセキュリティリリースが出たら、ローカルの Sail イメージ再ビルドと合わせてここを上げる。
+  PHP_MIN_VERSION: '8.5.12'
+
 jobs:
   pint:
     name: Pint
@@ -24,11 +29,32 @@ jobs:
           php-version: '8.5'
           coverage: none
 
+      - name: Verify PHP version
+        run: |
+          php -r 'echo "php ", PHP_VERSION, " (minimum ", getenv("PHP_MIN_VERSION"), ")", PHP_EOL;'
+          php -r 'exit(version_compare(PHP_VERSION, getenv("PHP_MIN_VERSION"), ">=") ? 0 : 1);'
+
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Pint
         run: ./vendor/bin/pint --test
+
+  composer-audit:
+    name: Composer audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      # composer.lock だけを見るので vendor/ は不要。
+      # 新しい advisory が公開されると、コードを変えていなくても落ちる（意図どおり）。
+      - name: Composer audit
+        run: composer audit --locked --no-interaction
 
   test:
     name: Laravel tests (MySQL)
@@ -90,6 +116,11 @@ jobs:
           php-version: '8.5'
           extensions: pdo_mysql, redis
           coverage: none
+
+      - name: Verify PHP version
+        run: |
+          php -r 'echo "php ", PHP_VERSION, " (minimum ", getenv("PHP_MIN_VERSION"), ")", PHP_EOL;'
+          php -r 'exit(version_compare(PHP_VERSION, getenv("PHP_MIN_VERSION"), ">=") ? 0 : 1);'
 
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
