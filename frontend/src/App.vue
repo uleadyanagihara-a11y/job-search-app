@@ -19,7 +19,8 @@ async function logout(): Promise<void> {
 
     try {
         await auth.logout();
-        await router.push({ name: 'home' });
+        // home は dashboard への redirect なので、未ログインの行き先である login へ直接送る。
+        await router.push({ name: 'login' });
     } finally {
         loggingOut.value = false;
     }
