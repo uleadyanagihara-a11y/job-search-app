@@ -22,7 +22,7 @@ jobs:
     name: Pint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -44,7 +44,7 @@ jobs:
     name: Composer audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -89,7 +89,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # services: では mysqld の起動フラグを渡せないため docker run で起動する。
       # compose.yaml の mysql command と同じ文字コード・照合順序・タイムゾーン。
@@ -140,10 +140,10 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # compose.yaml の frontend service（node:${NODE_VERSION}-bookworm-slim）と同じ Node
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24.22.0'
           cache: npm
