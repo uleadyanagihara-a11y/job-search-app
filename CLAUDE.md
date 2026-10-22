@@ -129,6 +129,17 @@ CI は **git 管理外のファイルが無いクリーンな checkout** で動�
 - テストやビルド手順を足すときは、`vendor/` `node_modules/` `public/build/` などが無い状態
   （`git worktree add` 等）でも通るか確認する。
 
+### 依存更新（Dependabot）
+
+`.github/dependabot.yml` で composer（ルート）/ npm（`frontend/`）/ GitHub Actions を毎週月曜 9:00（JST）に確認し、更新 PR を作る。
+minor・patch はエコシステムごとに 1 PR にまとめ、major は個別 PR。
+
+- PR では上記 CI（Laravel テスト・frontend の build 等）が走る。**自動マージはしない。CI が通ったことを確認して手動でマージする**。
+- マージ後、ローカルは `./vendor/bin/sail composer install` / `docker compose run --rm --no-deps frontend npm ci` で反映する（npm は `docker compose restart frontend` も）。
+- `typescript` の minor/major は ignore している（上記の peer 上限のため）。外すときは dependabot.yml も直す。
+- PHP 本体・Node・Docker イメージ（`compose.yaml` の各タグ）は Dependabot の対象外。手動で上げる。
+- ルートの `package.json`（Inertia 用、撤去予定）は対象にしていない。
+
 ## コーディング規約
 
 まだ規約を固めるだけのドメインコードが無いため未記載。機能追加時に
