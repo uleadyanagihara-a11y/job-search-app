@@ -113,8 +113,12 @@ Inertia 撤去後の Vue SPA（計画は `docs/inertia-removal-migration.md`）�
 
 ## CI（GitHub Actions）
 
-`.github/workflows/ci.yml` で Pint / Laravel テスト（MySQL 8.4 + Redis）/ Vite build を実行する。
+`.github/workflows/ci.yml` で Pint / Composer audit / Laravel テスト（MySQL 8.4 + Redis）/ Vite build を実行する。
 CI は **git 管理外のファイルが無いクリーンな checkout** で動くため、ローカルで通っても落ちることがある。
+
+- PHP は `setup-php` の `8.5`（8.5 系最新）だが、パッチ版を固定できないため workflow の `env.PHP_MIN_VERSION` で下限を検査する。
+  PHP 本体のセキュリティリリースが出たら、ここを上げ、ローカルは `./vendor/bin/sail build --no-cache laravel.test` → `./vendor/bin/sail up -d` で Sail イメージを作り直す。
+- Composer audit は `composer.lock` に対して実行するため、新しい advisory が公開されるとコード変更なしでも落ちる（意図どおり）。
 
 - テストは実 Redis に接続する（`RedisVerificationTest`）。CI では `services:` で Redis を起動している。
 - Inertia の画面を描画するテストは `public/build/manifest.json` が必要。CI の test ジョブで先に `npm run build` している
