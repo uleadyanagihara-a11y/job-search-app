@@ -46,6 +46,11 @@ updates:
         update-types:
           - version-update:semver-minor
           - version-update:semver-major
+      # @types/node の major は実行環境の Node の major（現在 24）に合わせる。
+      # Node を上げるときに手動で上げる（CLAUDE.md の Node の項を参照）。
+      - dependency-name: '@types/node'
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: github-actions
     directory: /

@@ -49,7 +49,7 @@ Inertia 撤去後の Vue SPA（計画は `docs/inertia-removal-migration.md`）�
 - ブラウザは `localhost` か `127.0.0.1` で開く。WSL の IP 等の別名だと Vite が Host を拒否（403）し、Sanctum の stateful 判定にも一致しない。
 
 - `frontend/.npmrc` の `engine-strict=true` により、Sail の Node（24.18 / npm 12）で `npm ci` すると `EBADENGINE` で失敗する（意図どおり）。
-- Node を上げるときは `.env.example` の `NODE_VERSION`、`compose.yaml` の既定値、`frontend/package.json` の `engines`/`packageManager`、CI の `node-version` を同時に変える。
+- Node を上げるときは `.env.example` の `NODE_VERSION`、`compose.yaml` の既定値、`frontend/package.json` の `engines`/`packageManager`/`@types/node`（major を Node に合わせる。Dependabot は major を ignore）、CI の `node-version` を同時に変える。
 - `node_modules` は bind mount（`frontend/node_modules`）なので、ホストの VSCode の Vue 拡張・ESLint がそのまま使える。
 - `typescript` は `typescript-eslint` の peer 上限（`<6.1.0`）のため `~6.0.3` に固定している。
 
