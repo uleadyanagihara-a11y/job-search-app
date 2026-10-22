@@ -1,15 +1,15 @@
 # Job Search App
 
-Laravel、Inertia.js、Vue 3、Viteで構成した求人検索アプリケーションです。現在はLaravel Breezeによるユーザー登録・ログイン・メール確認・プロフィール編集と、Inertia/Vueの基本画面を備えています。
+Laravel（API）とVue 3 + TypeScriptのSPA（`frontend/`）で構成した求人検索アプリケーションです。現在はユーザー登録・ログイン・メール確認・プロフィール編集のAPIと、SPAのrouter・認証まわりの土台を備えています（画面は移植中）。
 
-ローカル開発環境にはLaravel Sailを使用します。ホスト側にPHP、Composer、Node.js、npmを個別にインストールする必要はありません。Sailの準備完了後は、PHP、Artisan、Composer、npmを必ず`./vendor/bin/sail`経由で実行してください。
+ローカル開発環境にはLaravel Sailを使用します。ホスト側にPHP、Composer、Node.js、npmを個別にインストールする必要はありません。Sailの準備完了後は、PHP、Artisan、Composerを必ず`./vendor/bin/sail`経由で、`frontend/`のnpmをComposeの`frontend` service経由で実行してください。
 
 ## 技術構成
 
 - Laravel 13
 - PHP 8.5（Sailランタイム）
-- Inertia.js 2 / Vue 3
-- Vite 8 / Tailwind CSS 3
+- Laravel Sanctum（Cookie + CSRFによるSPA認証）
+- Vue 3 / TypeScript / Vue Router / Vite 8（`frontend/`、Node 24.22.0）
 - Nginx 1.28.0
 - MySQL 8.4.11
 - Redis 8.10.0
@@ -50,8 +50,10 @@ cp .env.example .env
 
 ```dotenv
 APP_URL=http://localhost:8080
+FRONTEND_URL=http://localhost:8080
 APP_PORT=8080
-VITE_PORT=5174
+SANCTUM_STATEFUL_DOMAINS=localhost:8080
+NODE_VERSION=24.22.0
 APP_TIMEZONE=Asia/Tokyo
 
 WWWUSER=1000
@@ -97,9 +99,11 @@ id -g
 ./vendor/bin/sail up -d --wait
 ./vendor/bin/sail artisan key:generate
 ./vendor/bin/sail artisan migrate
-./vendor/bin/sail npm ci
-./vendor/bin/sail npm run build
+docker compose run --rm --no-deps frontend npm ci
+docker compose restart frontend
 ```
+
+`frontend/`のnpmは`laravel.test`ではなく`frontend` service（固定したNode image）で実行します。`./vendor/bin/sail npm`や`sail run`は`laravel.test`内で実行されるため使いません。
 
 ### データベースの文字コードとタイムゾーン
 
@@ -120,17 +124,13 @@ id -g
 
 ## 日常の開発
 
-バックエンドと関連サービスを起動します。
+すべてのサービスを起動します。SPAのVite開発サーバーも`frontend` serviceとして起動します。
 
 ```bash
 ./vendor/bin/sail up -d --wait
 ```
 
-別のターミナルでVite開発サーバーを起動します。
-
-```bash
-./vendor/bin/sail npm run dev
-```
+ブラウザでは http://localhost:8080 を開きます。branch切替やpullで`frontend/`が変わった場合は`docker compose restart frontend`を実行します。
 
 終了時はコンテナを停止します。MySQL、Redis、Mailpitの名前付きボリュームは保持されます。
 
@@ -146,20 +146,21 @@ id -g
 `compose.yaml`は次の方針で構成しています。
 
 - ホストの`APP_PORT`はNginxだけが公開し、Webアクセスの入口をNginxへ統一
-- NginxはGit管理された[`docker/nginx/default.conf`](docker/nginx/default.conf)を使用し、`laravel.test:80`へリクエストを転送
-- `nginx`、`laravel.test`、`mysql`、`redis`、`mailpit`を専用の`bridge`ネットワーク`sail`へ接続
+- NginxはGit管理された[`docker/nginx/default.conf`](docker/nginx/default.conf)を使用し、画面とHMRを`frontend:5173`（Vite）へ、API系を`laravel.test:80`へ転送
+- `nginx`、`laravel.test`、`frontend`、`mysql`、`redis`、`mailpit`を専用の`bridge`ネットワーク`sail`へ接続
 - MySQL、Redis、Mailpitのデータを名前付きボリュームへ保存
 - 接続先、認証情報、ホスト側ポート、イメージバージョンを環境変数で管理
 - MySQL、Redis、Mailpitのヘルスチェックが成功してから`laravel.test`を起動し、Laravelのヘルスチェック成功後にNginxを起動
 - Nginx、MySQL、Redis、Mailpitのイメージをバージョン固定
 
-Webリクエストは次の経路でLaravelへ到達します。
+Webリクエストはpathごとに次の経路で振り分けます。
 
 ```text
-ブラウザ -> localhost:${APP_PORT} -> nginx:80 -> laravel.test:80
+ブラウザ -> localhost:${APP_PORT} -> nginx:80 -+-> /api/* /sanctum/* /auth/email/verify/* /storage/* /up -> laravel.test:80
+                                               +-> それ以外（画面、/@vite/*、HMR WebSocket）           -> frontend:5173
 ```
 
-`laravel.test`のHTTPポートはホストへ公開していないため、ブラウザからLaravelへ直接アクセスする経路はありません。Viteの開発サーバーだけは、ホットリロードのため`VITE_PORT`をホストへ公開します。
+`laravel.test`と`frontend`のポートはホストへ公開していないため、ブラウザからはNginxを経由してだけアクセスします。振り分けは`./docker/nginx/smoke-test.sh`（ホストのcurlで実行）で確認できます。
 
 ## URLとポート
 
@@ -168,7 +169,6 @@ Webリクエストは次の経路でLaravelへ到達します。
 | サービス | URLまたはホスト側ポート |
 | --- | --- |
 | Webアプリ（Nginx経由） | http://localhost:8080 |
-| Vite | http://localhost:5174 |
 | MySQL | `127.0.0.1:3308` |
 | Redis | `127.0.0.1:6380` |
 | Mailpit SMTP | `127.0.0.1:1026` |
@@ -186,10 +186,10 @@ Laravelコンテナから各サービスへ接続するときは、MySQLに`mysq
 ./vendor/bin/sail ps
 
 # 全サービスの直近100行のログ
-./vendor/bin/sail logs --tail=100 nginx laravel.test mysql redis mailpit
+./vendor/bin/sail logs --tail=100 nginx laravel.test frontend mysql redis mailpit
 
 # 全サービスのログを継続表示（Ctrl+Cで表示だけを終了）
-./vendor/bin/sail logs -f nginx laravel.test mysql redis mailpit
+./vendor/bin/sail logs -f nginx laravel.test frontend mysql redis mailpit
 
 # 停止（コンテナと名前付きボリュームは保持）
 ./vendor/bin/sail stop
@@ -207,11 +207,11 @@ Laravelコンテナから各サービスへ接続するときは、MySQLに`mysq
 ./vendor/bin/sail composer install
 ./vendor/bin/sail composer validate
 
-# フロントエンド
-./vendor/bin/sail npm ci
-./vendor/bin/sail npm run dev
-./vendor/bin/sail npm run build
-
+# フロントエンド（frontend/）
+docker compose run --rm --no-deps frontend npm ci
+docker compose run --rm --no-deps frontend npm run lint
+docker compose run --rm --no-deps frontend npm run typecheck
+docker compose run --rm --no-deps frontend npm run build
 ```
 
 ホスト側では`php artisan`、`composer`、`npm`、`php`を直接実行しません。PHPスクリプトを実行する場合も、次のようにSailを経由します。
@@ -228,10 +228,12 @@ Laravelコンテナから各サービスへ接続するときは、MySQLに`mysq
 ./vendor/bin/sail artisan test
 ```
 
-フロントエンドの本番ビルドも確認します。
+フロントエンドのlint、型検査、本番ビルドも確認します。
 
 ```bash
-./vendor/bin/sail npm run build
+docker compose run --rm --no-deps frontend npm run lint
+docker compose run --rm --no-deps frontend npm run typecheck
+docker compose run --rm --no-deps frontend npm run build
 ```
 
 ## Redis動作確認
@@ -271,16 +273,17 @@ Docker Desktopを起動し、対象のWSLディストリビューションとの
 `.env`でホスト側ポートを変更します。次は設定例です。
 
 ```dotenv
-APP_URL=http://localhost:8081
-APP_PORT=8081
-VITE_PORT=5175
+APP_URL=http://localhost:8090
+FRONTEND_URL=http://localhost:8090
+APP_PORT=8090
+SANCTUM_STATEFUL_DOMAINS=localhost:8090
 FORWARD_DB_PORT=3309
 FORWARD_REDIS_PORT=6381
 FORWARD_MAILPIT_PORT=1027
 FORWARD_MAILPIT_DASHBOARD_PORT=8027
 ```
 
-上記は変更例です。Nginxの公開ポートを変更する場合は、`APP_PORT`に合わせて`APP_URL`も同じURLへ変更してください。
+上記は変更例です。Nginxの公開ポートを変更する場合は、`APP_PORT`に合わせて`APP_URL`・`FRONTEND_URL`・`SANCTUM_STATEFUL_DOMAINS`も同じURLへ変更してください。
 
 ### 設定変更が反映されない
 
