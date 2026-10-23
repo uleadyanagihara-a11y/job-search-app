@@ -16,7 +16,11 @@ export default defineConfig(
             parserOptions: { parser: tseslint.parser },
         },
         // .editorconfig（indent_size = 4）に合わせる
-        rules: { 'vue/html-indent': ['warn', 4] },
+        rules: {
+            'vue/html-indent': ['warn', 4],
+            // 旧 Breeze の共通部品名を移植先でも使う（HTML 要素名とは衝突しない）
+            'vue/multi-word-component-names': ['error', { ignores: ['Checkbox', 'Dropdown', 'Modal'] }],
+        },
     },
     {
         files: ['src/**/*.{ts,vue}', 'tests/**/*.ts'],
