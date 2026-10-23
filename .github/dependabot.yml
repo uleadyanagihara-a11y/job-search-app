@@ -51,6 +51,11 @@ updates:
       - dependency-name: '@types/node'
         update-types:
           - version-update:semver-major
+      # Tailwind CSS は 3 系を PostCSS plugin として使う（docs/inertia-removal-migration.md の Phase 3 手順 4〜6）。
+      # 4 系は設定・CSS の書き方が変わるため、移行を決めたときに手動で上げる。
+      - dependency-name: tailwindcss
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: github-actions
     directory: /

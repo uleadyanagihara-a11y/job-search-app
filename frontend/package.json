@@ -12,7 +12,8 @@
         "build": "vite build",
         "preview": "vite preview",
         "lint": "eslint . --max-warnings=0",
-        "typecheck": "vue-tsc --build"
+        "typecheck": "vue-tsc --build",
+        "audit:check": "node scripts/check-npm-audit.mjs"
     },
     "dependencies": {
         "vue": "^3.5.44",
@@ -20,12 +21,16 @@
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
+        "@tailwindcss/forms": "^0.5.11",
         "@types/node": "^24.19.2",
         "@vitejs/plugin-vue": "^6.0.10",
         "@vue/tsconfig": "^0.9.1",
+        "autoprefixer": "^10.6.1",
         "eslint": "^10.12.0",
         "eslint-plugin-vue": "^10.11.1",
         "globals": "^17.13.0",
+        "postcss": "^8.5.31",
+        "tailwindcss": "^3.4.19",
         "typescript": "~6.0.3",
         "typescript-eslint": "^8.71.2",
         "vite": "^8.3.4",
