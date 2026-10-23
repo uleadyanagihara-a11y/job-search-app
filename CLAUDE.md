@@ -33,12 +33,20 @@ Vue SPA（経緯と API 契約は `docs/inertia-removal-migration.md`）。Sail 
 | --- | --- |
 | 依存インストール（初回・lock 更新後） | `docker compose run --rm --no-deps frontend npm ci` |
 | lint / 型検査 / build | `docker compose run --rm --no-deps frontend npm run lint`（`typecheck` / `build` も同様） |
+| unit/component/router テスト | `docker compose run --rm --no-deps frontend npm run test:run`（Vitest。`frontend/tests/**/*.test.ts`） |
+| E2E | `docker compose run --rm frontend-e2e` → 後片付け `docker compose rm -sf laravel.e2e nginx-e2e`（Playwright。`frontend/e2e/**/*.spec.ts`） |
 | Vite dev サーバ | `./vendor/bin/sail up -d` で `frontend` service として起動（`frontend:5173`、host には非公開） |
 | ブラウザ確認 | http://localhost:8080（nginx。画面/HMR は Vite、`/api` `/sanctum` `/auth/email/verify` `/storage` `/up` は Laravel） |
 
 | Nginx 振り分けの確認 | `./docker/nginx/smoke-test.sh`（ホストの curl で実行。path ごとの upstream/status、HMR WebSocket、Host 検査） |
 
 - `frontend` が止まっていても nginx と API は動く（画面だけ 502）。
+- E2E は `test` profile の `laravel.e2e`（DB は `testing_e2e`、起動時に `migrate:fresh`）・`nginx-e2e`・`frontend-e2e`（Playwright image）で動き、開発 DB は触らない。
+  `frontend-e2e` は `nginx-e2e` の network namespace を共有し、入口は `http://localhost`（Vite の allowedHosts と Sanctum の stateful に一致させるため）。
+  `laravel.e2e` の `artisan serve` は `--no-reload` 必須（無いと `.env` にある key の環境変数が外され、`DB_DATABASE` が開発 DB に戻る）。
+  `sail stop` / `sail down` は test profile の container を止めないので、E2E 後は上の後片付けをする。
+- `docker/nginx/default.conf` は nginx image の templates として mount し、`${LARAVEL_UPSTREAM}` を起動時に envsubst する（nginx 変数の `$http_host` 等は置換されない）。
+- `@playwright/test` は `compose.yaml` の `frontend-e2e` image tag と version を一致させる。Dependabot は ignore しているので、両方を手動で同時に上げる。
 - **branch 切替・pull で `frontend/` が変わったら `docker compose restart frontend`**。切替中に `vite.config.ts` が
   一時的に消えると Vite が config 無しで再起動し、復帰後も Vue plugin が読まれず `.vue` が 500 になる
   （Compose は unhealthy でも自動再起動しない）。smoke test の `GET /src/App.vue` で検出できる。

@@ -146,12 +146,13 @@ docker compose restart frontend
 `compose.yaml`は次の方針で構成しています。
 
 - ホストの`APP_PORT`はNginxだけが公開し、Webアクセスの入口をNginxへ統一
-- NginxはGit管理された[`docker/nginx/default.conf`](docker/nginx/default.conf)を使用し、画面とHMRを`frontend:5173`（Vite）へ、API系を`laravel.test:80`へ転送
+- NginxはGit管理された[`docker/nginx/default.conf`](docker/nginx/default.conf)を使用し、画面とHMRを`frontend:5173`（Vite）へ、API系を`laravel.test:80`へ転送（Laravel の転送先は`LARAVEL_UPSTREAM`で、nginx imageのtemplatesとして起動時に置換。E2E用の`nginx-e2e`は`laravel.e2e:80`）
 - `nginx`、`laravel.test`、`frontend`、`mysql`、`redis`、`mailpit`を専用の`bridge`ネットワーク`sail`へ接続
 - MySQL、Redis、Mailpitのデータを名前付きボリュームへ保存
 - 接続先、認証情報、ホスト側ポート、イメージバージョンを環境変数で管理
 - MySQL、Redis、Mailpitのヘルスチェックが成功してから`laravel.test`を起動し、Laravelのヘルスチェック成功後にNginxを起動
-- Nginx、MySQL、Redis、Mailpitのイメージをバージョン固定
+- Nginx、MySQL、Redis、Mailpit、Playwrightのイメージをバージョン固定
+- E2E用の`laravel.e2e`、`nginx-e2e`、`frontend-e2e`は`test` profileで、`sail up`では起動しない
 
 Webリクエストはpathごとに次の経路で振り分けます。
 
@@ -211,7 +212,12 @@ Laravelコンテナから各サービスへ接続するときは、MySQLに`mysq
 docker compose run --rm --no-deps frontend npm ci
 docker compose run --rm --no-deps frontend npm run lint
 docker compose run --rm --no-deps frontend npm run typecheck
+docker compose run --rm --no-deps frontend npm run test:run
 docker compose run --rm --no-deps frontend npm run build
+
+# E2E（Playwright。開発環境を起動した状態で実行し、終わったら E2E 用 container を消す）
+docker compose run --rm frontend-e2e
+docker compose rm -sf laravel.e2e nginx-e2e
 ```
 
 ホスト側では`php artisan`、`composer`、`npm`、`php`を直接実行しません。PHPスクリプトを実行する場合も、次のようにSailを経由します。
@@ -228,13 +234,38 @@ docker compose run --rm --no-deps frontend npm run build
 ./vendor/bin/sail artisan test
 ```
 
-フロントエンドのlint、型検査、本番ビルドも確認します。
+フロントエンドのlint、型検査、unit/component/router テスト（Vitest）、本番ビルドも確認します。
 
 ```bash
 docker compose run --rm --no-deps frontend npm run lint
 docker compose run --rm --no-deps frontend npm run typecheck
+docker compose run --rm --no-deps frontend npm run test:run
 docker compose run --rm --no-deps frontend npm run build
 ```
+
+テストの置き場所は次のとおりです。Vitest は`*.test.ts`、Playwright は`*.spec.ts`だけを収集します。
+
+| 種類 | 置き場所 | 実行 |
+| --- | --- | --- |
+| unit（API client、composable 等） | `frontend/tests/unit/` | Vitest（jsdom） |
+| component | `frontend/tests/component/` | Vitest + Vue Test Utils |
+| router guard | `frontend/tests/router/` | Vitest + `createMemoryHistory()` |
+| E2E | `frontend/e2e/` | Playwright（Chromium） |
+
+### E2E（Playwright）
+
+`./vendor/bin/sail up -d --wait`で開発環境を起動した状態で実行します。
+
+```bash
+docker compose run --rm frontend-e2e
+docker compose rm -sf laravel.e2e nginx-e2e
+```
+
+- `test` profile の`frontend-e2e`（`mcr.microsoft.com/playwright`、`@playwright/test`と同じ version）が、E2E 専用の`nginx-e2e`経由で`http://localhost`を開きます。Vite は開発用の`frontend` serviceを共有します。
+- Laravel は E2E 専用の`laravel.e2e`で、DB は`testing_e2e`です。開発用 DB（`job_search_app`）とPHPUnit用の`testing`は更新しません。`laravel.e2e`は起動のたびに`migrate:fresh`するため、実行後に`docker compose rm -sf laravel.e2e nginx-e2e`で消しておくと、次回は空のDBから始まります。
+- `laravel.e2e`と`nginx-e2e`は`sail stop` / `sail down`の対象外です（`test` profileのため）。残っていると`sail down`がnetworkを削除できません。
+- 失敗時の trace / screenshot は`frontend/test-results/`、HTML レポートは`frontend/playwright-report/`に出力されます。
+- Playwright を上げるときは、`frontend/package.json`の`@playwright/test`と`compose.yaml`の`frontend-e2e`の image tag を同時に変えます（Dependabot は対象外にしています）。
 
 ## Redis動作確認
 

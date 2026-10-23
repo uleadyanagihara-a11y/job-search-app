@@ -771,7 +771,7 @@ frontend script は `lint` = `eslint . --max-warnings=0`, `typecheck` = `vue-tsc
 
 これにより、SPA の画面が移植されるまで（Phase 4 完了まで）placeholder 以外の画面は無い。残りの扱いは次のとおり。
 
-- Phase 3: 未了の test toolchain（手順 11〜12）を続ける。Tailwind/font（手順 4〜6）は完了（2026-10-22）。Tailwind 設定・CSS は削除前のルート `tailwind.config.js` / `postcss.config.js` / `resources/css/app.css` を git 履歴から移植し、Figtree は `@fontsource-variable/figtree` の latin / latin-ext の variable WOFF2（wght 300–900）と OFL を `frontend/src/assets/fonts/` に置いた（npm 依存にはしない）。
+- Phase 3: test toolchain（手順 11〜12）は完了（2026-10-23）。Vitest（jsdom、`frontend/tests/{unit,component,router}/**/*.test.ts`）と Playwright（`frontend/e2e/**/*.spec.ts`、Chromium）を入れ、CI の frontend job に `npm run test:run` を追加した。E2E は Compose の `test` profile に `frontend-e2e`（`mcr.microsoft.com/playwright:v1.64.1-noble`）、専用 DB `testing_e2e` を使う `laravel.e2e`、それを向く `nginx-e2e` を置き、`frontend-e2e` は `nginx-e2e` の network namespace から `http://localhost` を開く。Nginx の Laravel upstream はこのため `LARAVEL_UPSTREAM` で差し替え可能にした。E2E の CI job は Phase 5 着手前に追加する。Tailwind/font（手順 4〜6）は完了（2026-10-22）。Tailwind 設定・CSS は削除前のルート `tailwind.config.js` / `postcss.config.js` / `resources/css/app.css` を git 履歴から移植し、Figtree は `@fontsource-variable/figtree` の latin / latin-ext の variable WOFF2（wght 300–900）と OFL を `frontend/src/assets/fonts/` に置いた（npm 依存にはしない）。
 - Phase 4: 移植順は維持する。完了条件のうち「旧 Inertia 画面と新 SPA の UI 回帰確認」は削除する。旧画面の見た目は参考にとどめる。
 - Phase 5: production の配信（`frontend/dist` を Nginx image へ、`/assets/*` の cache、`index.html` の no-cache と fallback）は production 構成を作る時点で行う。
 - Phase 6: 完了。
