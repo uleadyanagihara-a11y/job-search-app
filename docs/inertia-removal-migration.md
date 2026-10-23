@@ -773,6 +773,12 @@ frontend script は `lint` = `eslint . --max-warnings=0`, `typecheck` = `vue-tsc
 
 - Phase 3: test toolchain（手順 11〜12）は完了（2026-10-23）。Vitest（jsdom、`frontend/tests/{unit,component,router}/**/*.test.ts`）と Playwright（`frontend/e2e/**/*.spec.ts`、Chromium）を入れ、CI の frontend job に `npm run test:run` を追加した。E2E は Compose の `test` profile に `frontend-e2e`（`mcr.microsoft.com/playwright:v1.64.1-noble`）、専用 DB `testing_e2e` を使う `laravel.e2e`、それを向く `nginx-e2e` を置き、`frontend-e2e` は `nginx-e2e` の network namespace から `http://localhost` を開く。Nginx の Laravel upstream はこのため `LARAVEL_UPSTREAM` で差し替え可能にした。E2E の CI job は Phase 5 着手前に追加する。Tailwind/font（手順 4〜6）は完了（2026-10-22）。Tailwind 設定・CSS は削除前のルート `tailwind.config.js` / `postcss.config.js` / `resources/css/app.css` を git 履歴から移植し、Figtree は `@fontsource-variable/figtree` の latin / latin-ext の variable WOFF2（wght 300–900）と OFL を `frontend/src/assets/fonts/` に置いた（npm 依存にはしない）。
 - Phase 4: 移植順は維持する。完了条件のうち「旧 Inertia 画面と新 SPA の UI 回帰確認」は削除する。旧画面の見た目は参考にとどめる。
+  各画面の前提になる共通部品は先に移植した（2026-10-23）。旧 `resources/js/Components` の Breeze 部品と `GuestLayout` を git 履歴から `frontend/src/components/`・`frontend/src/layouts/` へ `<script setup lang="ts">` で移し、`frontend/tests/component/components/` に component test を置いた。移植時の変更点は次のとおり。
+  - `Link` は `RouterLink`（prop は `href` ではなく `to`）。`NavLink` 等の `active` は呼び出し側が route 名で判定して渡し、active なら `aria-current="page"` を付ける。`DropdownLink`・`ResponsiveNavLink` は `to` が無ければ `type="button"` の button になり、logout のような API 呼び出しはこちらを使う（§3.3）。
+  - `Checkbox` は `v-model:checked` をやめて通常の `v-model`（boolean）にした。
+  - button の既定 `type` は `PrimaryButton` が `submit`、`SecondaryButton`・`DangerButton` が `button`（`DangerButton` を確認 Modal の起動に使っても form を送信しない）。3 種とも `disabled` で薄く表示する。
+  - `Modal` は Escape を document 全体の keydown ではなく dialog の keydown/cancel で受け、既定動作（dialog が自分で閉じる）を止めて `close` の emit だけにした。閉じる途中で再び開いたときに遅れて閉じる不具合と、`show=true` で mount したときに開かない不具合を直した。jsdom は `showModal` を実装しないため component test では stub し、ブラウザでの動作は profile の account 削除の E2E で確認する。
+  - `GuestLayout` の logo は `home` への link（未ログインなら login、ログイン済みなら dashboard に着く）。
 - Phase 5: production の配信（`frontend/dist` を Nginx image へ、`/assets/*` の cache、`index.html` の no-cache と fallback）は production 構成を作る時点で行う。
 - Phase 6: 完了。
 - Phase 7・10 章: 旧画面との比較を前提とする項目は適用しない。
