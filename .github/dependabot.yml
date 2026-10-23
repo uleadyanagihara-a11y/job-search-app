@@ -56,6 +56,9 @@ updates:
       - dependency-name: tailwindcss
         update-types:
           - version-update:semver-major
+      # compose.yaml の frontend-e2e の image（mcr.microsoft.com/playwright:v<version>-noble）と
+      # version を一致させる必要があり、image は Dependabot の対象外のため、両方を手動で同時に上げる。
+      - dependency-name: '@playwright/test'
 
   - package-ecosystem: github-actions
     directory: /

@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint';
 
 // 型の正しさは vue-tsc に任せ、ここでは type-aware rule を使わない。
 export default defineConfig(
-    { ignores: ['dist/', 'coverage/'] },
+    { ignores: ['dist/', 'coverage/', 'test-results/', 'playwright-report/', 'blob-report/'] },
     js.configs.recommended,
     tseslint.configs.recommended,
     pluginVue.configs['flat/recommended'],
@@ -19,7 +19,7 @@ export default defineConfig(
         rules: { 'vue/html-indent': ['warn', 4] },
     },
     {
-        files: ['src/**/*.{ts,vue}'],
+        files: ['src/**/*.{ts,vue}', 'tests/**/*.ts'],
         languageOptions: { globals: globals.browser },
     },
     {

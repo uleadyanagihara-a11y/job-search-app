@@ -3,8 +3,11 @@ services:
         image: 'nginx:${NGINX_VERSION:-1.28.0-alpine}'
         ports:
             - '${APP_PORT:-80}:80'
+        environment:
+            LARAVEL_UPSTREAM: 'laravel.test:80'
         volumes:
-            - './docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro'
+            # templates/*.template は起動時に envsubst されて conf.d/ に出力される（LARAVEL_UPSTREAM の置換）
+            - './docker/nginx/default.conf:/etc/nginx/templates/default.conf.template:ro'
         networks:
             - sail
         depends_on:
@@ -73,6 +76,91 @@ services:
             timeout: 5s
             retries: 10
             start_period: 10s
+    # --- E2E（test profile）: docker compose run --rm frontend-e2e npm run test:e2e ---
+    # 開発データを更新しないよう、専用 DB（testing_e2e）を使う Laravel と、それを向く Nginx を別に立てる。
+    # Vite は開発用の frontend service を共有する。sail up / docker compose up では起動しない。
+    laravel.e2e:
+        image: 'sail-8.5/app'
+        profiles: ['test']
+        expose:
+            - '80'
+        # .env より compose の environment が優先される（Laravel の dotenv は既存の環境変数を上書きしない）。
+        environment:
+            WWWUSER: '${WWWUSER:-1000}'
+            LARAVEL_SAIL: 1
+            XDEBUG_MODE: 'off'
+            # testing_e2e は create-testing-database.sh の GRANT（testing%）の範囲。無ければ migrate が作る
+            DB_DATABASE: testing_e2e
+            # ブラウザは nginx-e2e の network namespace から http://localhost で開く
+            APP_URL: 'http://localhost'
+            FRONTEND_URL: 'http://localhost'
+            SANCTUM_STATEFUL_DOMAINS: localhost
+            # 開発側で config:cache していても、その（開発 DB を向いた）cache を読まない
+            APP_CONFIG_CACHE: /tmp/laravel-e2e-config.php
+        # 起動のたびに testing_e2e を作り直す。artisan serve は --no-reload を付けないと
+        # .env にある key の環境変数を外して子 process を起動し、DB_DATABASE が .env の値（開発 DB）に戻る。
+        command:
+            - sh
+            - -c
+            - 'php artisan migrate:fresh --force && exec php -d variables_order=EGPCS artisan serve --host=0.0.0.0 --port=80 --no-reload'
+        volumes:
+            - '.:/var/www/html'
+        networks:
+            - sail
+        depends_on:
+            mysql:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            mailpit:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD', 'curl', '--fail', '--silent', '--show-error', 'http://127.0.0.1/up']
+            interval: 5s
+            timeout: 5s
+            retries: 20
+            start_period: 30s
+    nginx-e2e:
+        image: 'nginx:${NGINX_VERSION:-1.28.0-alpine}'
+        profiles: ['test']
+        # host へは公開しない。frontend-e2e がこの container の network namespace から localhost:80 で使う
+        environment:
+            LARAVEL_UPSTREAM: 'laravel.e2e:80'
+        volumes:
+            - './docker/nginx/default.conf:/etc/nginx/templates/default.conf.template:ro'
+        networks:
+            - sail
+        depends_on:
+            laravel.e2e:
+                condition: service_healthy
+            frontend:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD', 'wget', '--quiet', '--spider', 'http://127.0.0.1/up']
+            interval: 5s
+            timeout: 5s
+            retries: 10
+            start_period: 5s
+    # Playwright（browser 同梱）。tag は frontend/package.json の @playwright/test と同じ version にする。
+    # npm ci はせず、frontend service で入れた ./frontend/node_modules をそのまま使う。
+    frontend-e2e:
+        image: 'mcr.microsoft.com/playwright:v1.64.1-noble'
+        profiles: ['test']
+        user: '${WWWUSER:-1000}:${WWWGROUP:-1000}'
+        working_dir: /app
+        init: true
+        # Nginx の入口を http://localhost にする（Vite の allowedHosts と Sanctum の stateful domain に一致させる）
+        network_mode: 'service:nginx-e2e'
+        environment:
+            HOME: /tmp
+            E2E_BASE_URL: 'http://localhost'
+            CI: '${CI:-}'
+        command: ['npm', 'run', 'test:e2e']
+        volumes:
+            - './frontend:/app'
+        depends_on:
+            nginx-e2e:
+                condition: service_healthy
     mysql:
         image: 'mysql:${MYSQL_VERSION:-8.4.11}'
         # サーバ起動フラグ。永続ボリュームの有無に関係なく毎回適用される

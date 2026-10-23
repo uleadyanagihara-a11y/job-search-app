@@ -1,0 +1,9 @@
+{
+    "extends": "./tsconfig.app.json",
+    "include": ["env.d.ts", "src/**/*.ts", "src/**/*.vue", "tests/**/*.ts"],
+    "compilerOptions": {
+        "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.vitest.tsbuildinfo",
+        "lib": ["ES2023", "DOM", "DOM.Iterable"],
+        "types": ["node"]
+    }
+}
