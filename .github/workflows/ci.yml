@@ -212,6 +212,10 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      # unit/component/router（Vitest）。E2E（Playwright）の job は Phase 5 着手前に追加する。
+      - name: Unit tests
+        run: npm run test:run
+
       - name: Build
         run: npm run build
 
