@@ -1,5 +1,9 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 import { authGuard } from '@/router/guards';
+import ForgotPasswordView from '@/views/auth/ForgotPasswordView.vue';
+import LoginView from '@/views/auth/LoginView.vue';
+import RegisterView from '@/views/auth/RegisterView.vue';
+import ResetPasswordView from '@/views/auth/ResetPasswordView.vue';
 import NotFoundView from '@/views/NotFoundView.vue';
 import PlaceholderView from '@/views/PlaceholderView.vue';
 
@@ -18,25 +22,25 @@ declare module 'vue-router' {
 
 const APP_NAME = 'Job Search App';
 
-// 画面は Phase 4 で移植するまで PlaceholderView で受ける。
+// 未移植の画面は Phase 4 で移植するまで PlaceholderView で受ける。
 // route 名は旧 Laravel の route 名に揃える。
 // アプリの情報はログイン後にだけ見せる。公開してよいのは認証画面と 404 だけで、
 // それ以外は access を省略して（= auth）guard に login へ送らせる。
 export const routes: RouteRecordRaw[] = [
     // 公開の Welcome 画面は持たない。未ログインなら dashboard の guard で login へ送られる。
     { path: '/', name: 'home', redirect: { name: 'dashboard' } },
-    { path: '/login', name: 'login', component: PlaceholderView, meta: { title: 'Log in', access: 'guest' } },
-    { path: '/register', name: 'register', component: PlaceholderView, meta: { title: 'Register', access: 'guest' } },
+    { path: '/login', name: 'login', component: LoginView, meta: { title: 'Log in', access: 'guest' } },
+    { path: '/register', name: 'register', component: RegisterView, meta: { title: 'Register', access: 'guest' } },
     {
         path: '/forgot-password',
         name: 'password.request',
-        component: PlaceholderView,
+        component: ForgotPasswordView,
         meta: { title: 'Forgot Password', access: 'guest' },
     },
     {
         path: '/reset-password/:token',
         name: 'password.reset',
-        component: PlaceholderView,
+        component: ResetPasswordView,
         meta: { title: 'Reset Password', access: 'guest' },
     },
     {

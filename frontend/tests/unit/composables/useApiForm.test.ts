@@ -32,6 +32,20 @@ describe('useApiForm', () => {
         expect(form.errors.value).toEqual({ password: 'y' });
     });
 
+    it('失敗後に reset した field の error は消えない', async () => {
+        const form = useApiForm({ email: '', password: '' });
+        form.data.password = 'wrong';
+        await form.submit(async () => {
+            throw new ApiError(422, 'validation_failed', 'invalid', { password: ['x'] });
+        });
+
+        form.reset('password');
+        await nextTick();
+
+        expect(form.data.password).toBe('');
+        expect(form.errors.value).toEqual({ password: 'x' });
+    });
+
     it('422 以外の ApiError は error に入れる', async () => {
         const form = useApiForm({ email: '' });
         const failure = new ApiError(429, 'too_many_requests', 'しばらくしてから再試行してください。');
