@@ -23,22 +23,36 @@ export function useApiForm<T extends FormData>(initial: T) {
     const recentlySuccessful = ref(false);
 
     let recentlySuccessfulTimer: ReturnType<typeof setTimeout> | undefined;
+    let resetting = false;
 
     // 入力を変えたら、その field の error だけ消す（§8 validation error）。
+    // 失敗後の reset('password') では error を残すため、sync で実行して reset 中の変更を見分ける。
     for (const key of Object.keys(defaults)) {
         watch(
             () => data[key],
             () => {
-                delete errors.value[key];
+                if (!resetting) {
+                    delete errors.value[key];
+                }
             },
+            { flush: 'sync' },
         );
     }
 
+    /**
+     * 値を初期値へ戻す。field error は消さない（消すのは clearErrors）。
+     */
     function reset(...fields: (keyof T & string)[]): void {
         const targets = fields.length > 0 ? fields : (Object.keys(defaults) as (keyof T & string)[]);
 
-        for (const field of targets) {
-            data[field] = defaults[field];
+        resetting = true;
+
+        try {
+            for (const field of targets) {
+                data[field] = defaults[field];
+            }
+        } finally {
+            resetting = false;
         }
     }
 

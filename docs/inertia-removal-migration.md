@@ -779,6 +779,13 @@ frontend script は `lint` = `eslint . --max-warnings=0`, `typecheck` = `vue-tsc
   - button の既定 `type` は `PrimaryButton` が `submit`、`SecondaryButton`・`DangerButton` が `button`（`DangerButton` を確認 Modal の起動に使っても form を送信しない）。3 種とも `disabled` で薄く表示する。
   - `Modal` は Escape を document 全体の keydown ではなく dialog の keydown/cancel で受け、既定動作（dialog が自分で閉じる）を止めて `close` の emit だけにした。閉じる途中で再び開いたときに遅れて閉じる不具合と、`show=true` で mount したときに開かない不具合を直した。jsdom は `showModal` を実装しないため component test では stub し、ブラウザでの動作は profile の account 削除の E2E で確認する。
   - `GuestLayout` の logo は `home` への link（未ログインなら login、ログイン済みなら dashboard に着く）。
+  移植順 1 の guest auth（Login、Register、ForgotPassword、ResetPassword）は移植した（2026-10-26）。`frontend/src/views/auth/` に置き、component test は `frontend/tests/component/views/auth/`、E2E は `frontend/e2e/guest-auth.spec.ts`（ResetPassword は Mailpit の API からメール内の reset URL を取って開く）。Breeze からの変更点は次のとおり。
+  - 旧 props の `status`（flash）は、ForgotPassword では API の `message` を同じ画面に表示し、ResetPassword 成功時は `router.replace({ name: 'login', state: { status } })` の history state で Login に渡す。
+  - 旧 props の `canResetPassword` は廃止し、Login は常に ForgotPassword への link を出す。Login には Register への link を足した（`?redirect=` は引き継ぐ）。
+  - Login は `?verification_required=1`（§5.4 の callback から未ログインで来た場合）なら login を促す message を出す。login/register 成功後の遷移は `navigateAfterLogin()`（`?redirect=` の intended を優先し、callback は `window.location.assign()`）。
+  - ResetPassword の token は route param、email は query から取る。無効・期限切れの `errors.token` は入力欄が無いため form の上に表示する。
+  - 422 以外の失敗（network、429 等）は field error と分けて form の上に `role="alert"` で表示する。field error のある入力欄には `aria-invalid` と `aria-describedby` を付ける。
+  - `useApiForm` の `reset()` は field error を消さないようにした（失敗後の `reset('password')` で password の error まで消えていた）。
 - Phase 5: production の配信（`frontend/dist` を Nginx image へ、`/assets/*` の cache、`index.html` の no-cache と fallback）は production 構成を作る時点で行う。
 - Phase 6: 完了。
 - Phase 7・10 章: 旧画面との比較を前提とする項目は適用しない。
