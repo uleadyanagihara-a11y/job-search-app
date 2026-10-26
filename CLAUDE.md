@@ -57,7 +57,7 @@ Vue SPA（経緯と API 契約は `docs/inertia-removal-migration.md`）。Sail 
 - `node_modules` は bind mount（`frontend/node_modules`）なので、ホストの VSCode の Vue 拡張・ESLint がそのまま使える。
 - `typescript` は `typescript-eslint` の peer 上限（`<6.1.0`）のため `~6.0.3` に固定している。
 - CSS は Tailwind CSS 3（`frontend/tailwind.config.js`）を PostCSS（`frontend/postcss.config.js`）で処理する。`@tailwindcss/vite` は入れない。Tailwind 4 への major は Dependabot で ignore している。
-  3 系の最終版（3.4.19）は依存の `braces` 等に npm audit の advisory が残るが、許容している（理由・前提・再評価は `docs/accepted-vulnerabilities.md`）。
+  3 系の最終版（3.4.19）は依存の `postcss-selector-parser` に npm audit の advisory が残るが、許容している（理由・前提・再評価は `docs/accepted-vulnerabilities.md`）。
   `overrides` で推移的依存を強制更新しない。許容する advisory は `frontend/audit-accepted.json` に載せ、CI の `npm audit` job が照合する。
 - Figtree は `frontend/src/assets/fonts/` に self-host している（`@font-face` は `frontend/src/assets/app.css`）。外部 font CDN は使わない。
 

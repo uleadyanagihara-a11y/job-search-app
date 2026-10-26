@@ -2,11 +2,6 @@
     "$comment": "許容した npm audit の advisory。理由と再評価の条件は docs/accepted-vulnerabilities.md。scripts/check-npm-audit.mjs が照合する。",
     "acceptedFixVia": "tailwindcss",
     "advisories": {
-        "GHSA-vfj7-8cjw-p6xm": {
-            "package": "braces@3.0.3",
-            "path": "tailwindcss@3.4.19 > chokidar / micromatch / fast-glob > braces",
-            "acceptedOn": "2026-10-22"
-        },
         "GHSA-rj75-hqrm-r3gf": {
             "package": "postcss-selector-parser@6.1.5",
             "path": "tailwindcss@3.4.19 (> postcss-nested@6.2.0) > postcss-selector-parser",
