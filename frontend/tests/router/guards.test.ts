@@ -3,6 +3,7 @@ import { createMemoryHistory, createRouter, isNavigationFailure } from 'vue-rout
 import type { User } from '@/types/api';
 
 // auth store は module scope の状態を持つため、test ごとに module を読み直す。
+// vi.mock の factory は作り直されず、mock の呼び出し履歴は restoreMocks（vitest.config.ts）で消している。
 vi.mock('@/api/auth', () => ({ fetchUser: vi.fn() }));
 
 const verifiedUser: User = { id: 1, name: 'Test', email: 'test@example.com', email_verified_at: '2026-10-01T00:00:00+09:00' };

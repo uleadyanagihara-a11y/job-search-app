@@ -786,6 +786,12 @@ frontend script は `lint` = `eslint . --max-warnings=0`, `typecheck` = `vue-tsc
   - ResetPassword の token は route param、email は query から取る。無効・期限切れの `errors.token` は入力欄が無いため form の上に表示する。
   - 422 以外の失敗（network、429 等）は field error と分けて form の上に `role="alert"` で表示する。field error のある入力欄には `aria-invalid` と `aria-describedby` を付ける。
   - `useApiForm` の `reset()` は field error を消さないようにした（失敗後の `reset('password')` で password の error まで消えていた）。
+  移植順 2 の authenticated shell（Dashboard、navigation、Logout）は移植した（2026-10-26）。Breeze の `AuthenticatedLayout` を `frontend/src/layouts/AuthenticatedLayout.vue`、Dashboard を `frontend/src/views/DashboardView.vue` に置き、component test は `frontend/tests/component/layouts/`・`frontend/tests/component/views/DashboardView.test.ts`、E2E は `frontend/e2e/authenticated-shell.spec.ts`（登録時のメール認証 URL を Mailpit から取って開き、verified にしてから dashboard を操作する）。Breeze からの変更点は次のとおり。
+  - `App.vue` の仮 navigation と logout を削除し、navigation は各 view が使う layout（`AuthenticatedLayout` / `GuestLayout`）だけが持つ。`App.vue` に残すのは `/api/user` の取得失敗の alert と `RouterView`。未移植の auth 画面（verify-email、confirm-password、profile）の `PlaceholderView` も `AuthenticatedLayout` で包み、移植まで logout できるようにした。
+  - `$page.props.auth.user` は auth store の `user`。logout 直後など user が null の間は user 名の dropdown と responsive の設定欄を描画しない。
+  - logout は dropdown・responsive menu とも `to` の無い `DropdownLink`/`ResponsiveNavLink`（button）で API を呼び、成功したら login へ `push` する。送信中は両方の button を無効にし、失敗（network 等）は layout に `role="alert"` を出してログイン状態のまま残す。logout API の 401（session が既に切れていた）は logout 済みとして成功扱いにし、401 handler の `?redirect=` 付き遷移は起こさない。
+  - 見出しは `h2` ではなく `h1` にした。hamburger に `aria-controls`・`aria-expanded` と読み上げ用の label（`Navigation`）を付け、画面遷移したら responsive menu を閉じる（Inertia では page ごとに layout が作り直されていた）。
+  - Dashboard は §5.4 の callback 成功時の `?verified=1` でメール確認の完了を `role="status"` で表示する。
 - Phase 5: production の配信（`frontend/dist` を Nginx image へ、`/assets/*` の cache、`index.html` の no-cache と fallback）は production 構成を作る時点で行う。
 - Phase 6: 完了。
 - Phase 7・10 章: 旧画面との比較を前提とする項目は適用しない。
