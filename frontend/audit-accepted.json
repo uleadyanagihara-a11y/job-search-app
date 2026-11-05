@@ -1,11 +1,15 @@
 {
     "$comment": "許容した npm audit の advisory。理由と再評価の条件は docs/accepted-vulnerabilities.md。scripts/check-npm-audit.mjs が照合する。",
-    "acceptedFixVia": "tailwindcss",
     "advisories": {
-        "GHSA-rj75-hqrm-r3gf": {
-            "package": "postcss-selector-parser@6.1.5",
-            "path": "tailwindcss@3.4.19 (> postcss-nested@6.2.0) > postcss-selector-parser",
-            "acceptedOn": "2026-10-22"
+        "GHSA-3g3m-2fjr-6pw4": {
+            "package": "glob@13.0.6",
+            "path": "@vue/test-utils > js-beautify@2.0.3 > glob",
+            "acceptedOn": "2026-11-05"
+        },
+        "GHSA-g3hv-75wg-m249": {
+            "package": "minimatch@10.2.6",
+            "path": "eslint / @eslint/config-array / @typescript-eslint/typescript-estree / @vue/test-utils > js-beautify > (editorconfig@3.0.2 | glob) > minimatch",
+            "acceptedOn": "2026-11-05"
         }
     }
 }
