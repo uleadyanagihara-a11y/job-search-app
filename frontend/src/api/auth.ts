@@ -46,8 +46,20 @@ export async function register(payload: RegisterPayload): Promise<UserWithRedire
     return expectShape(await apiRequest('POST', '/auth/register', { body: payload }), isUserWithRedirectResponse);
 }
 
+/**
+ * POST /api/auth/logout。session が既に切れていた（401）場合も logout 済みとして扱い、
+ * onUnauthenticated の handler（`?redirect=` 付きで login へ送る）は呼ばない。
+ */
 export async function logout(): Promise<void> {
-    await apiRequest('POST', '/auth/logout');
+    try {
+        await apiRequest('POST', '/auth/logout', { allowUnauthenticated: true });
+    } catch (error) {
+        if (isApiError(error) && error.status === 401) {
+            return;
+        }
+
+        throw error;
+    }
 }
 
 export async function sendPasswordResetLink(payload: { email: string }): Promise<MessageResponse> {

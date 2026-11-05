@@ -41,3 +41,7 @@ Thumbs.db
 # Legacy local environments
 Homestead.json
 Homestead.yaml
+
+# Stray local files
+/type
+/type2

@@ -4,6 +4,7 @@ import ForgotPasswordView from '@/views/auth/ForgotPasswordView.vue';
 import LoginView from '@/views/auth/LoginView.vue';
 import RegisterView from '@/views/auth/RegisterView.vue';
 import ResetPasswordView from '@/views/auth/ResetPasswordView.vue';
+import DashboardView from '@/views/DashboardView.vue';
 import NotFoundView from '@/views/NotFoundView.vue';
 import PlaceholderView from '@/views/PlaceholderView.vue';
 
@@ -58,7 +59,7 @@ export const routes: RouteRecordRaw[] = [
     {
         path: '/dashboard',
         name: 'dashboard',
-        component: PlaceholderView,
+        component: DashboardView,
         meta: { title: 'Dashboard', access: 'auth', verified: true },
     },
     { path: '/profile', name: 'profile', component: PlaceholderView, meta: { title: 'Profile', access: 'auth' } },
