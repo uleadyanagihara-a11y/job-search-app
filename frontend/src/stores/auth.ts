@@ -44,6 +44,8 @@ function ensureLoaded(): Promise<void> {
 function setUser(next: User): void {
     user.value = next;
     loaded.value = true;
+    // loaded にすると ensureLoaded は再試行しないため、ここで消さないと App.vue の警告が残り続ける。
+    loadError.value = null;
 }
 
 /**
@@ -52,6 +54,20 @@ function setUser(next: User): void {
 function clear(): void {
     user.value = null;
     loaded.value = true;
+    loadError.value = null;
+}
+
+/**
+ * GET /api/user を取り直す。別 tab でメール認証した等、server 側で user が変わったときに使う。
+ */
+async function refresh(): Promise<void> {
+    const fetched = await authApi.fetchUser();
+
+    if (fetched === null) {
+        clear();
+    } else {
+        setUser(fetched);
+    }
 }
 
 async function logout(): Promise<void> {
@@ -72,6 +88,7 @@ export function useAuthStore() {
         ensureLoaded,
         setUser,
         clear,
+        refresh,
         logout,
     };
 }

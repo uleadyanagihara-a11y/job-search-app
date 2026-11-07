@@ -4,7 +4,7 @@
 
 求職情報サイト（Job Search App）。Laravel 13 の API（Sanctum の Cookie 認証）+ Vue 3 / TypeScript の SPA（`frontend/`）。
 Inertia・Breeze の旧画面は撤去済み（2026-10-17）。Laravel は API とメール認証 callback だけを持ち、画面は持たない。
-認証・profile の API はあるが SPA の画面は移植中（guest auth・Dashboard・共通 layout は移植済み。残りの route は PlaceholderView）。求人・応募まわりのドメインは未実装。
+認証・profile の API はあるが SPA の画面は移植中（guest auth・Dashboard・共通 layout・VerifyEmail・ConfirmPassword は移植済み。残りの profile は PlaceholderView）。求人・応募まわりのドメインは未実装。
 
 ## 開発環境（最重要）
 

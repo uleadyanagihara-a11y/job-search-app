@@ -4,7 +4,7 @@ import { createMemoryHistory, createRouter, type RouteLocationRaw } from 'vue-ro
 import { ApiError } from '@/api/client';
 import type { User } from '@/types/api';
 
-// guest auth 画面の component test 共通の準備。view 自体は mount で直接描画し、
+// auth 画面（guest auth と verify-email・confirm-password）の component test 共通の準備。view 自体は mount で直接描画し、
 // 遷移先は route 名だけ解決できればよいので stub にする（guard は tests/router で検証済み）。
 
 export const user: User = { id: 1, name: 'Test', email: 'test@example.com', email_verified_at: null };
@@ -20,6 +20,8 @@ export function createTestRouter() {
             { path: '/register', name: 'register', component: Stub },
             { path: '/forgot-password', name: 'password.request', component: Stub },
             { path: '/reset-password/:token', name: 'password.reset', component: Stub },
+            { path: '/verify-email', name: 'verification.notice', component: Stub },
+            { path: '/confirm-password', name: 'password.confirm', component: Stub },
             { path: '/dashboard', name: 'dashboard', component: Stub },
             { path: '/profile', name: 'profile', component: Stub },
         ],

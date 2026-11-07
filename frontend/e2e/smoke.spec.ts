@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import { registerViaApi, uniqueEmail } from './helpers';
 
 // Nginx 単一入口の振り分け、direct access、Cookie/CSRF の疎通を確かめる最小の E2E。
 // 画面の操作は guest-auth.spec.ts 等に任せ、ここでは title と URL で判定する。
@@ -27,15 +26,5 @@ test('API と healthcheck は Nginx から Laravel へ届く', async ({ request 
     expect(await user.json()).toMatchObject({ code: 'unauthenticated' });
 });
 
-test('Cookie + CSRF で register すると session が張られ、未認証メールの画面へ送られる', async ({ page }) => {
-    await page.goto('/register');
-
-    const status = await registerViaApi(page, uniqueEmail('smoke'));
-
-    expect(status).toBe(201);
-
-    await page.goto('/dashboard');
-
-    await expect(page).toHaveURL('/verify-email');
-    await expect(page).toHaveTitle('Email Verification - Job Search App');
-});
+// Cookie + CSRF の register で session が張られ、未認証メールの画面へ送られることは auth-state.spec.ts の冒頭で確かめる
+// （register は IP 単位で 6 回/分に制限されており、E2E 全体での回数を増やさないため）。
