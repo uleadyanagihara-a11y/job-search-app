@@ -41,6 +41,18 @@ export function onUnauthenticated(handler: UnauthenticatedHandler): void {
     unauthenticatedHandler = handler;
 }
 
+type PasswordConfirmationRequiredHandler = () => void;
+
+let passwordConfirmationRequiredHandler: PasswordConfirmationRequiredHandler | null = null;
+
+/**
+ * `api.password.confirm` の API が 423 `password_confirmation_required` を返したときの処理
+ * （confirm-password 画面への遷移）を登録する。旧 Laravel の `password.confirm` middleware の redirect に相当する。
+ */
+export function onPasswordConfirmationRequired(handler: PasswordConfirmationRequiredHandler): void {
+    passwordConfirmationRequiredHandler = handler;
+}
+
 export interface RequestOptions {
     body?: unknown;
     /** 401 を想定内として扱い、onUnauthenticated の handler を呼ばない（起動時の GET /api/user 用）。 */
@@ -77,6 +89,10 @@ export async function apiRequest(method: Method, path: string, options: RequestO
 
         if (error.status === 401 && !options.allowUnauthenticated) {
             unauthenticatedHandler?.();
+        }
+
+        if (error.code === 'password_confirmation_required') {
+            passwordConfirmationRequiredHandler?.();
         }
 
         throw error;

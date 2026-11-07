@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { apiRequest, isApiError, onUnauthenticated } from '@/api/client';
+import { apiRequest, isApiError, onPasswordConfirmationRequired, onUnauthenticated } from '@/api/client';
 
 function jsonResponse(status: number, body: unknown): Response {
     return new Response(JSON.stringify(body), {
@@ -91,6 +91,38 @@ describe('apiRequest', () => {
         const error = await catchApiError(apiRequest('GET', '/profile'));
         expect(error.code).toBe('unauthenticated');
         expect(handler).toHaveBeenCalledOnce();
+    });
+
+    it('423 password_confirmation_required は onPasswordConfirmationRequired の handler を呼ぶ', async () => {
+        const handler = vi.fn();
+        onPasswordConfirmationRequired(handler);
+        vi.stubGlobal(
+            'fetch',
+            vi.fn<typeof fetch>(async () =>
+                jsonResponse(423, { code: 'password_confirmation_required', message: 'パスワードの再確認が必要です。' }),
+            ),
+        );
+
+        const error = await catchApiError(apiRequest('GET', '/secure'));
+
+        expect(error.status).toBe(423);
+        expect(error.code).toBe('password_confirmation_required');
+        expect(handler).toHaveBeenCalledOnce();
+    });
+
+    it('423 でも code が password_confirmation_required でなければ handler を呼ばない', async () => {
+        const handler = vi.fn();
+        onPasswordConfirmationRequired(handler);
+        vi.stubGlobal(
+            'fetch',
+            vi.fn<typeof fetch>(async () => jsonResponse(423, { code: 'locked', message: 'ロックされています。' })),
+        );
+
+        const error = await catchApiError(apiRequest('GET', '/secure'));
+
+        expect(error.status).toBe(423);
+        expect(error.code).toBe('locked');
+        expect(handler).not.toHaveBeenCalled();
     });
 
     it('JSON でない失敗（Nginx の 502 等）は unexpected_response にする', async () => {

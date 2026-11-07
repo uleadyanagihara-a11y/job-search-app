@@ -71,4 +71,12 @@ describe('RegisterView', () => {
 
         expect(link?.attributes('href')).toBe('/login');
     });
+
+    it('login への link は ?redirect= などの query を引き継ぐ', async () => {
+        const { wrapper } = await mountAt(RegisterView, '/register?redirect=/profile');
+
+        const link = wrapper.findAll('a').find((a) => a.text() === 'Already registered?');
+
+        expect(link?.attributes('href')).toBe('/login?redirect=/profile');
+    });
 });

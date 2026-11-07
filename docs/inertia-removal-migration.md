@@ -787,11 +787,17 @@ frontend script は `lint` = `eslint . --max-warnings=0`, `typecheck` = `vue-tsc
   - 422 以外の失敗（network、429 等）は field error と分けて form の上に `role="alert"` で表示する。field error のある入力欄には `aria-invalid` と `aria-describedby` を付ける。
   - `useApiForm` の `reset()` は field error を消さないようにした（失敗後の `reset('password')` で password の error まで消えていた）。
   移植順 2 の authenticated shell（Dashboard、navigation、Logout）は移植した（2026-10-26）。Breeze の `AuthenticatedLayout` を `frontend/src/layouts/AuthenticatedLayout.vue`、Dashboard を `frontend/src/views/DashboardView.vue` に置き、component test は `frontend/tests/component/layouts/`・`frontend/tests/component/views/DashboardView.test.ts`、E2E は `frontend/e2e/authenticated-shell.spec.ts`（登録時のメール認証 URL を Mailpit から取って開き、verified にしてから dashboard を操作する）。Breeze からの変更点は次のとおり。
-  - `App.vue` の仮 navigation と logout を削除し、navigation は各 view が使う layout（`AuthenticatedLayout` / `GuestLayout`）だけが持つ。`App.vue` に残すのは `/api/user` の取得失敗の alert と `RouterView`。未移植の auth 画面（verify-email、confirm-password、profile）の `PlaceholderView` も `AuthenticatedLayout` で包み、移植まで logout できるようにした。
+  - `App.vue` の仮 navigation と logout を削除し、navigation は各 view が使う layout（`AuthenticatedLayout` / `GuestLayout`）だけが持つ。`App.vue` に残すのは `/api/user` の取得失敗の alert と `RouterView`。未移植の auth 画面（当時は verify-email、confirm-password、profile）の `PlaceholderView` も `AuthenticatedLayout` で包み、移植まで logout できるようにした。
   - `$page.props.auth.user` は auth store の `user`。logout 直後など user が null の間は user 名の dropdown と responsive の設定欄を描画しない。
   - logout は dropdown・responsive menu とも `to` の無い `DropdownLink`/`ResponsiveNavLink`（button）で API を呼び、成功したら login へ `push` する。送信中は両方の button を無効にし、失敗（network 等）は layout に `role="alert"` を出してログイン状態のまま残す。logout API の 401（session が既に切れていた）は logout 済みとして成功扱いにし、401 handler の `?redirect=` 付き遷移は起こさない。
   - 見出しは `h2` ではなく `h1` にした。hamburger に `aria-controls`・`aria-expanded` と読み上げ用の label（`Navigation`）を付け、画面遷移したら responsive menu を閉じる（Inertia では page ごとに layout が作り直されていた）。
   - Dashboard は §5.4 の callback 成功時の `?verified=1` でメール確認の完了を `role="status"` で表示する。
+  移植順 3 の auth state（VerifyEmail、ConfirmPassword）は移植した（2026-11-05）。`frontend/src/views/auth/VerifyEmailView.vue`・`ConfirmPasswordView.vue` に置き、Breeze と同じく `GuestLayout` で包む。component test は `frontend/tests/component/views/auth/`、E2E は `frontend/e2e/auth-state.spec.ts`（register の回数制限に収めるため、`smoke.spec.ts` の register の確認はこの spec の冒頭に統合した）。Breeze からの変更点は次のとおり。
+  - VerifyEmail の旧 props の `status`（`verification-link-sent`）は、再送 API の `message` を同じ画面に表示する。Log Out は link ではなく API を呼ぶ button にし、成功したら login へ `push`、失敗したら `role="alert"` を出して残る（`AuthenticatedLayout` と同じ）。
+  - VerifyEmail は §5.4 の callback の `?error=`（`invalid-or-expired`・`user-mismatch`・`too-many-requests`。未知の値は汎用の文言）を `role="alert"` で表示する。router guard は認証済みの user を verify-email から dashboard へ送るが、`?error=` 付きなら通す（認証済みの user が別 user のリンクを開いた場合などに、黙って dashboard へ送らないため）。このとき再送 form は出さず、dashboard への link だけを出す。
+  - 再送 API の 409 `conflict`（別 tab 等で認証済みになっていた）は、auth store の `refresh()`（`GET /api/user` の取り直し）で user を更新し、認証済みなら dashboard へ `replace` する。
+  - ConfirmPassword は成功したら `?redirect=`（`safeRedirectPath()` を通す。無ければ dashboard）へ `replace` する。password は成否にかかわらず消す。
+  - 旧 `password.confirm` middleware の redirect は、API client の `onPasswordConfirmationRequired()` に置き換えた。API が 423 `password_confirmation_required` を返したら、`frontend/src/main.ts` の handler が `?redirect=` に今の画面を入れて confirm-password へ `push` する（form の入力は残らないため、戻った画面で操作をやり直す）。`api.password.confirm` を使う API はまだ無く、業務 API で使い始めるときにこの流れを E2E で確認する。
 - Phase 5: production の配信（`frontend/dist` を Nginx image へ、`/assets/*` の cache、`index.html` の no-cache と fallback）は production 構成を作る時点で行う。
 - Phase 6: 完了。
 - Phase 7・10 章: 旧画面との比較を前提とする項目は適用しない。

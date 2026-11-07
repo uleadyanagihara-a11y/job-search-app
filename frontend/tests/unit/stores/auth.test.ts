@@ -101,6 +101,33 @@ describe('setUser / clear', () => {
         expect(auth.isAuthenticated.value).toBe(false);
         expect(authApi.fetchUser).not.toHaveBeenCalled();
     });
+
+    // loaded にすると ensureLoaded が再試行しないため、ここで消さないと App.vue の警告が残り続ける。
+    // 使われない mockResolvedValueOnce は後の test に持ち越されるため、refresh の応答は settle の中で仕込む。
+    it.each<[string, (loaded: Awaited<ReturnType<typeof load>>) => unknown]>([
+        ['setUser', ({ auth }) => auth.setUser(verifiedUser)],
+        ['clear', ({ auth }) => auth.clear()],
+        [
+            'refresh',
+            ({ authApi, auth }) => {
+                authApi.fetchUser.mockResolvedValueOnce(verifiedUser);
+
+                return auth.refresh();
+            },
+        ],
+    ])('%s で状態が確定したら、以前の loadError を消す', async (_, settle) => {
+        const loaded = await load();
+        const { authApi, ApiError, auth } = loaded;
+        const error = new ApiError(0, 'network_error', 'サーバーに接続できませんでした。');
+        authApi.fetchUser.mockRejectedValueOnce(error);
+        await expect(auth.ensureLoaded()).rejects.toBe(error);
+        expect(auth.loadError.value).toBe(error);
+
+        await settle(loaded);
+
+        expect(auth.loaded.value).toBe(true);
+        expect(auth.loadError.value).toBeNull();
+    });
 });
 
 describe('isVerified', () => {
@@ -117,6 +144,36 @@ describe('isVerified', () => {
 
         auth.clear();
         expect(auth.isVerified.value).toBe(false);
+    });
+});
+
+describe('refresh', () => {
+    it('loaded でも GET /api/user を取り直して user を差し替える', async () => {
+        const { authApi, auth } = await load();
+        auth.setUser(unverifiedUser);
+        authApi.fetchUser.mockResolvedValue(verifiedUser);
+
+        await auth.refresh();
+
+        expect(authApi.fetchUser).toHaveBeenCalledTimes(1);
+        expect(auth.user.value).toEqual(verifiedUser);
+        expect(auth.isVerified.value).toBe(true);
+    });
+
+    it('未ログイン（null）なら user を破棄する。失敗したら投げ、user は残す', async () => {
+        const { authApi, ApiError, auth } = await load();
+        auth.setUser(verifiedUser);
+        const error = new ApiError(0, 'network_error', 'サーバーに接続できませんでした。');
+        authApi.fetchUser.mockRejectedValueOnce(error).mockResolvedValueOnce(null);
+
+        await expect(auth.refresh()).rejects.toBe(error);
+        expect(auth.user.value).toEqual(verifiedUser);
+        // 前の user は有効なままなので、ログイン状態不明（loadError）にはしない。
+        expect(auth.loadError.value).toBeNull();
+
+        await auth.refresh();
+        expect(auth.user.value).toBeNull();
+        expect(auth.loaded.value).toBe(true);
     });
 });
 

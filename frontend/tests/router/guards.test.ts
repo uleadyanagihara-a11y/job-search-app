@@ -102,6 +102,25 @@ describe('authGuard', () => {
 
             expect(router.currentRoute.value.name).toBe('dashboard');
         });
+
+        it('メール認証済みでも callback の ?error= 付きなら verification.notice を表示する', async () => {
+            const router = await createTestRouter(verifiedUser);
+
+            await router.push('/verify-email?error=user-mismatch');
+
+            expect(router.currentRoute.value.name).toBe('verification.notice');
+            expect(router.currentRoute.value.query.error).toBe('user-mismatch');
+        });
+
+        it('メール未認証でも verification.notice と password.confirm は表示する', async () => {
+            const router = await createTestRouter(unverifiedUser);
+
+            await router.push('/verify-email');
+            expect(router.currentRoute.value.name).toBe('verification.notice');
+
+            await router.push('/confirm-password?redirect=/profile');
+            expect(router.currentRoute.value.name).toBe('password.confirm');
+        });
     });
 
     describe('認証状態を取得できない', () => {

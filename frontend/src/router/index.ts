@@ -1,9 +1,11 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 import { authGuard } from '@/router/guards';
+import ConfirmPasswordView from '@/views/auth/ConfirmPasswordView.vue';
 import ForgotPasswordView from '@/views/auth/ForgotPasswordView.vue';
 import LoginView from '@/views/auth/LoginView.vue';
 import RegisterView from '@/views/auth/RegisterView.vue';
 import ResetPasswordView from '@/views/auth/ResetPasswordView.vue';
+import VerifyEmailView from '@/views/auth/VerifyEmailView.vue';
 import DashboardView from '@/views/DashboardView.vue';
 import NotFoundView from '@/views/NotFoundView.vue';
 import PlaceholderView from '@/views/PlaceholderView.vue';
@@ -47,13 +49,13 @@ export const routes: RouteRecordRaw[] = [
     {
         path: '/verify-email',
         name: 'verification.notice',
-        component: PlaceholderView,
+        component: VerifyEmailView,
         meta: { title: 'Email Verification', access: 'auth' },
     },
     {
         path: '/confirm-password',
         name: 'password.confirm',
-        component: PlaceholderView,
+        component: ConfirmPasswordView,
         meta: { title: 'Confirm Password', access: 'auth' },
     },
     {

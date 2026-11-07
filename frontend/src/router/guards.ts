@@ -38,7 +38,9 @@ export async function authGuard(to: RouteLocationNormalized): Promise<boolean | 
         return { name: 'verification.notice' };
     }
 
-    if (to.name === 'verification.notice' && auth.isVerified.value) {
+    // メール認証 callback の失敗（`?error=`。§5.4）は認証済みでも表示する。
+    // 認証済みの user が別 user のリンクを開いた（user-mismatch）場合などに、黙って dashboard へ送らないため。
+    if (to.name === 'verification.notice' && auth.isVerified.value && to.query.error === undefined) {
         return { name: 'dashboard' };
     }
 
