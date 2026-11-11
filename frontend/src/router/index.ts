@@ -8,7 +8,7 @@ import ResetPasswordView from '@/views/auth/ResetPasswordView.vue';
 import VerifyEmailView from '@/views/auth/VerifyEmailView.vue';
 import DashboardView from '@/views/DashboardView.vue';
 import NotFoundView from '@/views/NotFoundView.vue';
-import PlaceholderView from '@/views/PlaceholderView.vue';
+import ProfileView from '@/views/profile/ProfileView.vue';
 
 declare module 'vue-router' {
     interface RouteMeta {
@@ -25,7 +25,6 @@ declare module 'vue-router' {
 
 const APP_NAME = 'Job Search App';
 
-// 未移植の画面は Phase 4 で移植するまで PlaceholderView で受ける。
 // route 名は旧 Laravel の route 名に揃える。
 // アプリの情報はログイン後にだけ見せる。公開してよいのは認証画面と 404 だけで、
 // それ以外は access を省略して（= auth）guard に login へ送らせる。
@@ -64,7 +63,7 @@ export const routes: RouteRecordRaw[] = [
         component: DashboardView,
         meta: { title: 'Dashboard', access: 'auth', verified: true },
     },
-    { path: '/profile', name: 'profile', component: PlaceholderView, meta: { title: 'Profile', access: 'auth' } },
+    { path: '/profile', name: 'profile', component: ProfileView, meta: { title: 'Profile', access: 'auth' } },
     {
         path: '/:pathMatch(.*)*',
         name: 'not-found',

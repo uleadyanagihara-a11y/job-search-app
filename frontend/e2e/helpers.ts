@@ -1,7 +1,7 @@
-import { expect, type APIRequestContext, type Browser, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test';
 
 // E2E の共通手順。Laravel の register は IP 単位で 6 回/分に制限されているため、
-// user の用意は 1 test 1 回にとどめる。
+// user の用意は 1 test 1 回にとどめる（超えた分は registerViaApi が Retry-After だけ待つ）。
 
 export const PASSWORD = 'E2e-Passw0rd!';
 
@@ -12,8 +12,28 @@ export function uniqueEmail(label: string): string {
 /**
  * SPA の API client と同じ手順（CSRF Cookie → X-XSRF-TOKEN 付きの POST）で register し、status を返す。
  * page の context には session が残る。
+ * suite 全体で register の rate limit（IP 単位 6 回/分）を超えたら、429 の Retry-After だけ待って 1 回だけ再送する
+ * （spec を足すたびに user の用意を他の spec へ統合しなくて済むようにするため）。
  */
 export async function registerViaApi(page: Page, email: string, password = PASSWORD): Promise<number> {
+    let result = await postRegister(page, email, password);
+
+    if (result.status === 429 && result.retryAfter !== null) {
+        const waitMs = (result.retryAfter + 1) * 1000;
+
+        test.info().setTimeout(test.info().timeout + waitMs);
+        await page.waitForTimeout(waitMs);
+        result = await postRegister(page, email, password);
+    }
+
+    return result.status;
+}
+
+async function postRegister(
+    page: Page,
+    email: string,
+    password: string,
+): Promise<{ status: number; retryAfter: number | null }> {
     return page.evaluate(
         async ({ email, password }) => {
             await fetch('/sanctum/csrf-cookie', { headers: { Accept: 'application/json' } });
@@ -32,8 +52,9 @@ export async function registerViaApi(page: Page, email: string, password = PASSW
                 },
                 body: JSON.stringify({ name: 'E2E User', email, password, password_confirmation: password }),
             });
+            const retryAfter = Number.parseInt(response.headers.get('Retry-After') ?? '', 10);
 
-            return response.status;
+            return { status: response.status, retryAfter: Number.isNaN(retryAfter) ? null : retryAfter };
         },
         { email, password },
     );
