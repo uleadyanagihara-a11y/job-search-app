@@ -798,6 +798,13 @@ frontend script は `lint` = `eslint . --max-warnings=0`, `typecheck` = `vue-tsc
   - 再送 API の 409 `conflict`（別 tab 等で認証済みになっていた）は、auth store の `refresh()`（`GET /api/user` の取り直し）で user を更新し、認証済みなら dashboard へ `replace` する。
   - ConfirmPassword は成功したら `?redirect=`（`safeRedirectPath()` を通す。無ければ dashboard）へ `replace` する。password は成否にかかわらず消す。
   - 旧 `password.confirm` middleware の redirect は、API client の `onPasswordConfirmationRequired()` に置き換えた。API が 423 `password_confirmation_required` を返したら、`frontend/src/main.ts` の handler が `?redirect=` に今の画面を入れて confirm-password へ `push` する（form の入力は残らないため、戻った画面で操作をやり直す）。`api.password.confirm` を使う API はまだ無く、業務 API で使い始めるときにこの流れを E2E で確認する。
+  移植順 4 の profile（profile 更新、password 更新、account 削除）を移植し、Phase 4 は完了した（2026-11-07）。`frontend/src/views/profile/` に `ProfileView.vue` と 3 つの form（`UpdateProfileInformationForm`・`UpdatePasswordForm`・`DeleteUserForm`）を置き、これで `PlaceholderView` を使う route が無くなったため削除した。component test は `frontend/tests/component/views/profile/`、E2E は `frontend/e2e/profile.spec.ts`（Modal の dialog の Escape・focus もここで確認する）。Breeze からの変更点は次のとおり。
+  - 旧 page props の代わりに、`ProfileView` が mount 時に `GET /api/profile` を呼び、その user で auth store を更新してから form を描画する（読み込み中は form を出さず、失敗したら `role="alert"` と再読み込みの button）。旧 props の `mustVerifyEmail` は `email_verified_at === null` から導出する。
+  - profile 更新は response の user で auth store を更新する（layout の user 名と、email 変更後の未認証表示がすぐ変わる）。確認メールの再送は link ではなく API を呼ぶ button にし、旧 `status` の代わりに API の `message` を表示する。409 `conflict` は VerifyEmail と同じく `refresh()` で user を取り直す。
+  - password 更新は Breeze と同じく、誤った欄だけ消して focus する。422 以外の失敗（network、429 等）は入力を残し、form の上に `role="alert"` を出す。
+  - account 削除の成功時は auth store を破棄してから login へ `replace` する（§6.1。login は guest 用なので、先に破棄しないと guard に dashboard へ戻される）。password は成否にかかわらず消す。旧 `@keyup.enter` は dialog 内の form の submit にし、dialog には見出しを `aria-labelledby` で付けた。
+  - Breeze では password 更新と account 削除の password 欄がどちらも `id="password"` で重複していたため、`update_password_*`・`delete_user_password` に分けた。
+  - E2E の user 作成が register の rate limit（IP 単位 6 回/分）を超えるようになったため、`e2e/helpers.ts` の `registerViaApi()` は 429 なら `Retry-After` だけ待って 1 回だけ再送する（その分 test の timeout を延ばす）。そのため suite の実行時間は最大で約 1 分延びる。
 - Phase 5: production の配信（`frontend/dist` を Nginx image へ、`/assets/*` の cache、`index.html` の no-cache と fallback）は production 構成を作る時点で行う。
 - Phase 6: 完了。
 - Phase 7・10 章: 旧画面との比較を前提とする項目は適用しない。
