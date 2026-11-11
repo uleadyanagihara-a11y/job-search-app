@@ -114,7 +114,7 @@ Vue SPA（経緯と API 契約は `docs/inertia-removal-migration.md`）。Sail 
 
 ## CI（GitHub Actions）
 
-`.github/workflows/ci.yml` で Pint / Composer audit / npm audit（`frontend/`、許容リスト照合）/ Laravel テスト（MySQL 8.4 + Redis）/ `frontend/` の lint・typecheck・build を実行する。
+`.github/workflows/ci.yml` で Pint / Composer audit / npm audit（`frontend/`、許容リスト照合）/ Laravel テスト（MySQL 8.4 + Redis）/ `frontend/` の lint・typecheck・build / E2E（Playwright）を実行する。
 PR・main への push に加え、毎週月曜 9:00 JST の schedule でも走る（コード変更なしで新しい advisory・修正版の公開を検出するため）。
 
 - PR のコードは信頼しない前提で動かす: `pull_request_target` は使わない、token は `contents: read`、checkout は `persist-credentials: false`、secrets を参照しない、全 job に `timeout-minutes` を付ける。job を足すときもこれを守る。
@@ -128,6 +128,11 @@ CI は **git 管理外のファイルが無いクリーンな checkout** で動�
   文字コード・照合順序・タイムゾーンを指定している。
 - runner の OS は `ubuntu-latest` ではなく `ubuntu-26.04` に固定している（`latest` は GitHub 側の移行で黙って OS が変わるため）。
   次の Ubuntu LTS の runner が GA になったら、各 job の `runs-on` をまとめて上げる。
+- E2E job はローカルと同じ Compose の test profile で動かす（`composer install` → `.env.example` から `.env` を作り APP_KEY を生成 → Sail image を build → `frontend` で `npm ci` → `docker compose run --rm frontend-e2e`）。
+  runner の uid（1001）に合わせて `WWWUSER` / `WWWGROUP` を渡すため、image に無い uid でも動くよう `frontend` / `frontend-e2e` は `HOME=/tmp` にしている。
+  Sail image は build cache なしで毎回 build している。遅さが問題になったら `docker/build-push-action` の gha cache を検討する。
+  失敗時は container の log を出し、`playwright-report/` と `test-results/` を artifact（7 日）に残す。
+  `compose.yaml` の Playwright image tag と lock の `@playwright/test` が違うと落ちる。
 - テストやビルド手順を足すときは、`vendor/` `frontend/node_modules/` `frontend/dist/` などが無い状態
   （`git worktree add` 等）でも通るか確認する。
 
