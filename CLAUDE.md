@@ -4,7 +4,7 @@
 
 求職情報サイト（Job Search App）。Laravel 13 の API（Sanctum の Cookie 認証）+ Vue 3 / TypeScript の SPA（`frontend/`）。
 Inertia・Breeze の旧画面は撤去済み（2026-10-17）。Laravel は API とメール認証 callback だけを持ち、画面は持たない。
-認証・profile の API と SPA の画面は移植済み（Phase 4 完了、2026-11-07）。求人・応募まわりのドメインは未実装。
+認証・profile の API と SPA の画面は移植済み（Phase 4 完了、2026-11-07）。求人・応募まわりのドメインは未実装（MVP の設計とスケジュールは `docs/domain-design.md`）。
 
 ## 開発環境（最重要）
 
@@ -57,6 +57,7 @@ Vue SPA（経緯と API 契約は `docs/inertia-removal-migration.md`）。Sail 
 - `node_modules` は bind mount（`frontend/node_modules`）なので、ホストの VSCode の Vue 拡張・ESLint がそのまま使える。
 - `typescript` は `typescript-eslint` の peer 上限（`<6.1.0`）のため `~6.0.3` に固定している。
 - CSS は Tailwind CSS 3（`frontend/tailwind.config.js`）を PostCSS（`frontend/postcss.config.js`）で処理する。`@tailwindcss/vite` は入れない。Tailwind 4 への major は Dependabot で ignore している。
+  ただし Tailwind 4 への移行は業務ドメインの実装前（`docs/domain-design.md` の M1.5）に前倒しする予定で、その変更でこの記述・ignore・`@tailwindcss/vite` の扱いを見直す。
 - devDependencies の推移的依存に修正版が無い npm audit の advisory は、記録して許容することがある（現在は ESLint・Vue Test Utils 経由の `minimatch` / `glob`。理由・前提・再評価は `docs/accepted-vulnerabilities.md`）。
   `overrides` で推移的依存を強制更新しない。許容する advisory は `frontend/audit-accepted.json` に載せ、CI の `npm audit` job が照合する。
 - Figtree は `frontend/src/assets/fonts/` に self-host している（`@font-face` は `frontend/src/assets/app.css`）。外部 font CDN は使わない。

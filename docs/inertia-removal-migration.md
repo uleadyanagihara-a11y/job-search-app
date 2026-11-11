@@ -919,6 +919,8 @@ frontend script は `lint` = `eslint . --max-warnings=0`, `typecheck` = `vue-tsc
 
 ### 移行完了後の後続変更: Tailwind CSS 4
 
+計画変更（2026-11-07）: 無料のデザイン素材を後から使えるようにするため、Phase 5・7 の完了を待たず、業務ドメインの実装（`docs/domain-design.md` の M2）の前に行う（同文書の M1.5・12 章）。以下の baseline と評価の方針は変えない。
+
 Tailwind CSS 4 化は Phase 0–7 と 10 章の完了判定に含めない。SPA 切替完了後に別 branch/PR で行い、Tailwind CSS 3 時点の build、UI 回帰 test、主要画面の表示を baseline にする。その際に v4 の CSS/config/content detection 方式を評価し、`@tailwindcss/vite` を使うか PostCSS 構成を継続するかを改めて決める。
 
 ## 7. 変更対象一覧
