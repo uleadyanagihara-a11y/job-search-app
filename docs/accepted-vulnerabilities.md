@@ -46,7 +46,7 @@ Composer（`composer audit`）には許容の仕組みを置いていない。ad
 - **2026-10-22〜2026-11-05: [GHSA-rj75-hqrm-r3gf](https://github.com/advisories/GHSA-rj75-hqrm-r3gf)（`postcss-selector-parser@6.1.5`、`tailwindcss@3.4.19` 経由）。**
   flat selector の解析が二乗の計算量になる CPU exhaustion（moderate）。修正版は `7.1.6` だけで、`tailwindcss` / `postcss-nested` が `^6` を要求するため許容していた。
   2026-10-26 に advisory の影響範囲が `< 6.1.5` と `>= 7.0.0, < 7.1.6` に改められ、`6.1.5` が修正版になったため `npm audit` に出なくなった。版は変えていない。
-  Tailwind 4 には上げず、3.4.19 を PostCSS で使う方針（`docs/inertia-removal-migration.md` の Phase 3 手順 4〜6）は変わらない。
+  （その後 2026-11-12 に Tailwind CSS 4 へ移行し、`tailwindcss@3` 経由のこの依存は無くなった。）
 - **2026-10-22〜2026-10-26: [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)（`braces@3.0.3`、`tailwindcss` → `chokidar` / `micromatch` 経由）。**
   high、stack exhaustion の DoS。2026-10-23 に GitHub が advisory を取り下げ（withdrawn）、`npm audit` に出なくなった。版は変えていない。
 

@@ -47,7 +47,7 @@ onMounted(load);
             <div class="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
                 <div
                     v-if="loadError"
-                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
+                    class="bg-white p-4 shadow-sm sm:rounded-lg sm:p-8"
                 >
                     <p
                         role="alert"
@@ -68,7 +68,7 @@ onMounted(load);
                     <!-- account 削除の直後は auth store の user が null になり、login へ遷移するまで描画しない -->
                     <div
                         v-if="auth.user.value"
-                        class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
+                        class="bg-white p-4 shadow-sm sm:rounded-lg sm:p-8"
                     >
                         <UpdateProfileInformationForm
                             :user="auth.user.value"
@@ -76,11 +76,11 @@ onMounted(load);
                         />
                     </div>
 
-                    <div class="bg-white p-4 shadow sm:rounded-lg sm:p-8">
+                    <div class="bg-white p-4 shadow-sm sm:rounded-lg sm:p-8">
                         <UpdatePasswordForm class="max-w-xl" />
                     </div>
 
-                    <div class="bg-white p-4 shadow sm:rounded-lg sm:p-8">
+                    <div class="bg-white p-4 shadow-sm sm:rounded-lg sm:p-8">
                         <DeleteUserForm class="max-w-xl" />
                     </div>
                 </template>

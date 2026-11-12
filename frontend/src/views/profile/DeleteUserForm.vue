@@ -55,7 +55,11 @@ function closeModal(): void {
 </script>
 
 <template>
-    <section class="space-y-6">
+    <!--
+        space-y-* は使わない。Tailwind CSS 4 の space-y は「最後以外の子」に margin-bottom を付けるため、
+        最後の子が閉じた Modal（dialog）だとボタンの下に余白ができる。
+    -->
+    <section>
         <header>
             <h2 class="text-lg font-medium text-gray-900">
                 Delete Account
@@ -68,7 +72,10 @@ function closeModal(): void {
             </p>
         </header>
 
-        <DangerButton @click="confirmUserDeletion">
+        <DangerButton
+            class="mt-6"
+            @click="confirmUserDeletion"
+        >
             Delete Account
         </DangerButton>
 

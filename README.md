@@ -10,7 +10,7 @@ Laravel（API）とVue 3 + TypeScriptのSPA（`frontend/`）で構成した求�
 - PHP 8.5（Sailランタイム）
 - Laravel Sanctum（Cookie + CSRFによるSPA認証）
 - Vue 3 / TypeScript / Vue Router / Vite 8（`frontend/`、Node 24.22.0）
-- Tailwind CSS 3（PostCSS）
+- Tailwind CSS 4（`@tailwindcss/vite`）
 - Vitest + Vue Test Utils（unit/component/router）、Playwright（E2E）
 - Nginx 1.28.0
 - MySQL 8.4.11

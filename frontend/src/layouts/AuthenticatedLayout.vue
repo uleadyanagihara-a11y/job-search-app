@@ -99,7 +99,7 @@ async function logout(): Promise<void> {
                                         <button
                                             type="button"
                                             data-user-menu
-                                            class="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
+                                            class="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-hidden"
                                         >
                                             {{ auth.user.value.name }}
 
@@ -145,7 +145,7 @@ async function logout(): Promise<void> {
                             type="button"
                             aria-controls="responsive-navigation"
                             :aria-expanded="showingNavigationDropdown ? 'true' : 'false'"
-                            class="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none"
+                            class="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-hidden"
                             @click="showingNavigationDropdown = !showingNavigationDropdown"
                         >
                             <span class="sr-only">Navigation</span>
@@ -238,7 +238,7 @@ async function logout(): Promise<void> {
         <!-- Page Heading -->
         <header
             v-if="$slots.header"
-            class="bg-white shadow"
+            class="bg-white shadow-sm"
         >
             <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
                 <slot name="header" />

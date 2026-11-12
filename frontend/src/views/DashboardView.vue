@@ -27,7 +27,7 @@ const justVerified = computed(() => route.query.verified === '1');
                     メールアドレスの確認が完了しました。
                 </div>
 
-                <div class="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+                <div class="overflow-hidden bg-white shadow-xs sm:rounded-lg">
                     <div class="p-6 text-gray-900">
                         You're logged in!
                     </div>

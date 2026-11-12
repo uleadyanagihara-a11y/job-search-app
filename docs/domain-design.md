@@ -235,6 +235,12 @@ MVP 後の優先度は、お気に入り → 担当者の招待画面 → 選考
 - `@tailwindcss/vite` を使うか PostCSS 構成を続けるかは、移行時に v4 の方式を評価して決める。
 - `.github/dependabot.yml` の Tailwind CSS major の ignore、CLAUDE.md の Tailwind CSS 3 の記述、`@tailwindcss/forms` の扱いを同じ変更で直す。
 
+完了（2026-11-12）:
+
+- `@tailwindcss/vite` を採用した（v4 の推奨構成で、PostCSS・Autoprefixer が不要になる）。設定は `frontend/src/assets/app.css` に移し、`@tailwindcss/forms` は `@plugin` で使い続ける。class を探す範囲は v3 と同じ `index.html` と `src/` に限った。
+- 主要画面 25 状態（guest 画面・422・focus・dashboard・dropdown・profile・削除 modal・mobile menu。desktop と mobile）を v3 で撮り、移行後に 0 pixel 差になるまで直した。移行ツール（`@tailwindcss/upgrade`）の書き換えに加えて手で直したのは、`ring-opacity-5`（移行ツールが見落とした）、`space-y-6` の最後の子が閉じた Modal の余白、Modal の panel が backdrop の下に描かれる（v4 の `transform` は単体では stacking context を作らない）の 3 つ。
+- button の cursor（v4 は default）は、スクリーンショットに出ないため互換 style で v3 の pointer に戻した。
+
 ### 差し替えやすくする土台（M1.5）
 
 - 色は意味で名前を付けた token（`primary`、`danger`、`surface` など）を CSS 変数で定義し、画面・部品はそれを使う。既存の部品・画面にある Breeze 由来の `indigo-*`・`gray-*` を置き換える。
