@@ -130,7 +130,9 @@ CI は **git 管理外のファイルが無いクリーンな checkout** で動�
   次の Ubuntu LTS の runner が GA になったら、各 job の `runs-on` をまとめて上げる。
 - E2E job はローカルと同じ Compose の test profile で動かす（`composer install` → `.env.example` から `.env` を作り APP_KEY を生成 → Sail image を build → `frontend` で `npm ci` → `docker compose run --rm frontend-e2e`）。
   runner の uid（1001）に合わせて `WWWUSER` / `WWWGROUP` を渡すため、image に無い uid でも動くよう `frontend` / `frontend-e2e` は `HOME=/tmp` にしている。
-  Sail image は build cache なしで毎回 build している。遅さが問題になったら `docker/build-push-action` の gha cache を検討する。
+  Sail image は cache なしだと build に約 15 分かかるため、`docker/build-push-action` で GitHub Actions の cache（scope `sail-8.5`）を使う。
+  cache に書くのは main への push と schedule だけで、PR は読むだけ。schedule では cache を使わずに作り直す（apt の更新を取り込むため）。
+  そのため main に一度 push されるまでは、PR でも 15 分かかる。
   失敗時は container の log を出し、`playwright-report/` と `test-results/` を artifact（7 日）に残す。
   `compose.yaml` の Playwright image tag と lock の `@playwright/test` が違うと落ちる。
 - テストやビルド手順を足すときは、`vendor/` `frontend/node_modules/` `frontend/dist/` などが無い状態
