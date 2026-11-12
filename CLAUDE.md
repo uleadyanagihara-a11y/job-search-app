@@ -46,6 +46,8 @@ Vue SPA（経緯と API 契約は `docs/inertia-removal-migration.md`）。Sail 
   `laravel.e2e` の `artisan serve` は `--no-reload` 必須（無いと `.env` にある key の環境変数が外され、`DB_DATABASE` が開発 DB に戻る）。
   `sail stop` / `sail down` は test profile の container を止めないので、E2E 後は上の後片付けをする。
 - `docker/nginx/default.conf` は nginx image の templates として mount し、`${LARAVEL_UPSTREAM}` を起動時に envsubst する（nginx 変数の `$http_host` 等は置換されない）。
+  編集後は `docker compose up -d --force-recreate nginx`（`restart` だと WSL2 で単一ファイルの bind mount が壊れたままになり起動しない）。
+  全 response に `Referrer-Policy: same-origin` を付けている（password 再設定・招待の token の URL が外部へ Referer で漏れないように。`docs/domain-design.md`）。smoke test と E2E の `smoke.spec.ts` で確認する。
 - `@playwright/test` は `compose.yaml` の `frontend-e2e` image tag と version を一致させる。Dependabot は ignore しているので、両方を手動で同時に上げる。
 - **branch 切替・pull で `frontend/` が変わったら `docker compose restart frontend`**。切替中に `vite.config.ts` が
   一時的に消えると Vite が config 無しで再起動し、復帰後も Vue plugin が読まれず `.vue` が 500 になる

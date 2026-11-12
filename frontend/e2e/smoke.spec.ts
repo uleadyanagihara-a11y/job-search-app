@@ -26,5 +26,13 @@ test('API と healthcheck は Nginx から Laravel へ届く', async ({ request 
     expect(await user.json()).toMatchObject({ code: 'unauthenticated' });
 });
 
+test('Nginx は画面と API の両方に Referrer-Policy: same-origin を付ける', async ({ request }) => {
+    // password 再設定の URL の token が Referer で外部に漏れないようにする（docker/nginx/default.conf）
+    for (const path of ['/reset-password/token?email=user%40example.com', '/up']) {
+        const response = await request.get(path);
+        expect(response.headers()['referrer-policy'], path).toBe('same-origin');
+    }
+});
+
 // Cookie + CSRF の register で session が張られ、未認証メールの画面へ送られることは auth-state.spec.ts の冒頭で確かめる
 // （register は IP 単位で 6 回/分に制限されており、E2E 全体での回数を増やさないため）。

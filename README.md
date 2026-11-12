@@ -146,7 +146,7 @@ docker compose restart frontend
 `compose.yaml`は次の方針で構成しています。
 
 - ホストの`APP_PORT`はNginxだけが公開し、Webアクセスの入口をNginxへ統一
-- NginxはGit管理された[`docker/nginx/default.conf`](docker/nginx/default.conf)を使用し、画面とHMRを`frontend:5173`（Vite）へ、API系を`laravel.test:80`へ転送（Laravel の転送先は`LARAVEL_UPSTREAM`で、nginx imageのtemplatesとして起動時に置換。E2E用の`nginx-e2e`は`laravel.e2e:80`）
+- NginxはGit管理された[`docker/nginx/default.conf`](docker/nginx/default.conf)を使用し、画面とHMRを`frontend:5173`（Vite）へ、API系を`laravel.test:80`へ転送（Laravel の転送先は`LARAVEL_UPSTREAM`で、nginx imageのtemplatesとして起動時に置換。E2E用の`nginx-e2e`は`laravel.e2e:80`）。全 responseに`Referrer-Policy: same-origin`を付け、password 再設定 URL の token が Referer で外部へ漏れないようにしている
 - `nginx`、`laravel.test`、`frontend`、`mysql`、`redis`、`mailpit`を専用の`bridge`ネットワーク`sail`へ接続
 - MySQL、Redis、Mailpitのデータを名前付きボリュームへ保存
 - 接続先、認証情報、ホスト側ポート、イメージバージョンを環境変数で管理

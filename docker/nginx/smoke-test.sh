@@ -71,6 +71,20 @@ expect_not_spa 'GET /up'
 expect 'GET /storage/存在しない (署名なし)' 403 text/html "$SPA/storage/__smoke_not_found.png"
 expect_not_spa 'GET /storage/存在しない'
 
+echo "Referrer-Policy"
+# Vite・Laravel のどちらへ振り分けても、nginx が same-origin を 1 つだけ付ける
+expect_referrer_policy() {
+    local label="$1" url="$2"
+    shift 2
+    local values
+    values="$(curl -s -o /dev/null -D - "$@" "$url" | tr -d '\r' | sed -n 's/^[Rr]eferrer-[Pp]olicy: *//p')"
+    [ "$values" = same-origin ] && pass "$label: same-origin" || fail "$label: Referrer-Policy '${values//$'\n'/, }' (expected same-origin)"
+}
+expect_referrer_policy 'GET / (Vite)' "$SPA/"
+expect_referrer_policy 'GET /reset-password/{token} (Vite)' "$SPA/reset-password/token?email=user%40example.com"
+expect_referrer_policy 'GET /api/user (Laravel)' "$SPA/api/user" -H 'Accept: application/json'
+expect_referrer_policy 'GET /up (Laravel)' "$SPA/up"
+
 echo "HMR WebSocket"
 token="$(curl -s "$SPA/@vite/client" | sed -n 's/^const wsToken = "\([^"]*\)";/\1/p')"
 if [ -z "$token" ]; then
