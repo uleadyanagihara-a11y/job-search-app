@@ -262,8 +262,22 @@ jobs:
           echo "WWWUSER=$(id -u)" >> "$GITHUB_ENV"
           echo "WWWGROUP=$(id -g)" >> "$GITHUB_ENV"
 
+      # Sail の Dockerfile は apt で大量に入れるため、cache なしだと 15 分かかる。GitHub Actions の cache に layer を残す。
+      # - cache に書くのは main への push と schedule だけ（PR は main の cache を読むだけにし、PR ごとの 3GB で容量を埋めない）。
+      # - Dockerfile が変わらない限り apt の upgrade も cache のままになるため、週次の schedule では cache を使わずに作り直す。
+      # - tag は compose.yaml の laravel.test / laravel.e2e と同じ。image があれば compose は build しない。
+      - uses: docker/setup-buildx-action@v4
+
       - name: Build Sail image
-        run: docker compose build laravel.test
+        uses: docker/build-push-action@v7
+        with:
+          context: vendor/laravel/sail/runtimes/8.5
+          build-args: WWWGROUP=${{ env.WWWGROUP }}
+          tags: sail-8.5/app
+          load: true
+          no-cache: ${{ github.event_name == 'schedule' }}
+          cache-from: type=gha,scope=sail-8.5
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,mode=max,scope=sail-8.5' || '' }}
 
       # frontend-e2e は npm ci をせず ./frontend/node_modules を使う
       - name: Install npm dependencies
