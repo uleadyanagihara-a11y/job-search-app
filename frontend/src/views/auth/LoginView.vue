@@ -49,7 +49,7 @@ async function onSubmit(): Promise<void> {
         <div
             v-if="passwordResetStatus"
             role="status"
-            class="mb-4 text-sm font-medium text-green-600"
+            class="mb-4 text-sm font-medium text-success-600"
         >
             {{ passwordResetStatus }}
         </div>
@@ -57,7 +57,7 @@ async function onSubmit(): Promise<void> {
         <div
             v-if="verificationRequired"
             role="status"
-            class="mb-4 text-sm font-medium text-gray-600"
+            class="mb-4 text-sm font-medium text-fg-muted"
         >
             メールアドレスの確認を完了するには、ログインしてください。
         </div>
@@ -65,7 +65,7 @@ async function onSubmit(): Promise<void> {
         <p
             v-if="error"
             role="alert"
-            class="mb-4 text-sm text-red-600"
+            class="mb-4 text-sm text-danger-600"
         >
             {{ error.message }}
         </p>
@@ -126,14 +126,14 @@ async function onSubmit(): Promise<void> {
                         v-model="data.remember"
                         name="remember"
                     />
-                    <span class="ms-2 text-sm text-gray-600">Remember me</span>
+                    <span class="ms-2 text-sm text-fg-muted">Remember me</span>
                 </label>
             </div>
 
             <div class="mt-4 flex items-center justify-end">
                 <RouterLink
                     :to="{ name: 'password.request' }"
-                    class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    class="rounded-md text-sm text-fg-muted underline hover:text-fg-strong focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                 >
                     Forgot your password?
                 </RouterLink>
@@ -147,10 +147,10 @@ async function onSubmit(): Promise<void> {
             </div>
         </form>
 
-        <p class="mt-4 text-center text-sm text-gray-600">
+        <p class="mt-4 text-center text-sm text-fg-muted">
             <RouterLink
                 :to="{ name: 'register', query: route.query }"
-                class="rounded-md underline hover:text-gray-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                class="rounded-md underline hover:text-fg-strong focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
             >
                 Create an account
             </RouterLink>

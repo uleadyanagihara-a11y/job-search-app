@@ -48,7 +48,7 @@ async function onSubmit(): Promise<void> {
         <p
             v-if="error"
             role="alert"
-            class="mb-4 text-sm text-red-600"
+            class="mb-4 text-sm text-danger-600"
         >
             {{ error.message }}
         </p>
@@ -130,7 +130,7 @@ async function onSubmit(): Promise<void> {
             <div class="mt-4 flex items-center justify-end">
                 <RouterLink
                     :to="{ name: 'password.request' }"
-                    class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    class="rounded-md text-sm text-fg-muted underline hover:text-fg-strong focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                 >
                     Request a new link
                 </RouterLink>

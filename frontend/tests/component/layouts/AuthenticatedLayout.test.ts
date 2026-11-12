@@ -86,17 +86,18 @@ describe('AuthenticatedLayout', () => {
         const toggle = wrapper.get('button[aria-controls="responsive-navigation"]');
 
         expect(toggle.attributes('aria-expanded')).toBe('false');
-        expect(wrapper.get('#responsive-navigation').classes()).toContain('hidden');
+        expect(wrapper.get('#responsive-navigation').isVisible()).toBe(false);
 
         await toggle.trigger('click');
 
         expect(toggle.attributes('aria-expanded')).toBe('true');
-        expect(wrapper.get('#responsive-navigation').classes()).toContain('block');
+        expect(wrapper.get('#responsive-navigation').isVisible()).toBe(true);
 
         await router.push('/profile');
         await flushPromises();
 
         expect(toggle.attributes('aria-expanded')).toBe('false');
+        expect(wrapper.get('#responsive-navigation').isVisible()).toBe(false);
     });
 
     it.each([0, 1])('Log Out（%i 番目: dropdown / responsive）で logout API を呼び、store を破棄して login へ移動する', async (index) => {

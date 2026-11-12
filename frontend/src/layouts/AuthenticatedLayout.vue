@@ -55,8 +55,8 @@ async function logout(): Promise<void> {
 </script>
 
 <template>
-    <div class="min-h-screen bg-gray-100">
-        <nav class="border-b border-gray-100 bg-white">
+    <div class="min-h-screen bg-canvas">
+        <nav class="border-b border-line-subtle bg-surface">
             <!-- Primary Navigation Menu -->
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div class="flex h-16 justify-between">
@@ -67,7 +67,7 @@ async function logout(): Promise<void> {
                                 :to="{ name: 'dashboard' }"
                                 aria-label="Job Search App"
                             >
-                                <ApplicationLogo class="block h-9 w-auto fill-current text-gray-800" />
+                                <ApplicationLogo class="block h-9 w-auto fill-current text-fg" />
                             </RouterLink>
                         </div>
 
@@ -99,7 +99,7 @@ async function logout(): Promise<void> {
                                         <button
                                             type="button"
                                             data-user-menu
-                                            class="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-hidden"
+                                            class="inline-flex items-center rounded-md border border-transparent bg-surface px-3 py-2 text-sm font-medium leading-4 text-fg-subtle transition duration-150 ease-in-out hover:text-fg-secondary focus:outline-hidden"
                                         >
                                             {{ auth.user.value.name }}
 
@@ -145,7 +145,7 @@ async function logout(): Promise<void> {
                             type="button"
                             aria-controls="responsive-navigation"
                             :aria-expanded="showingNavigationDropdown ? 'true' : 'false'"
-                            class="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-hidden"
+                            class="inline-flex items-center justify-center rounded-md p-2 text-fg-faint transition duration-150 ease-in-out hover:bg-surface-hover hover:text-fg-subtle focus:bg-surface-hover focus:text-fg-subtle focus:outline-hidden"
                             @click="showingNavigationDropdown = !showingNavigationDropdown"
                         >
                             <span class="sr-only">Navigation</span>
@@ -177,9 +177,10 @@ async function logout(): Promise<void> {
             </div>
 
             <!-- Responsive Navigation Menu -->
+            <!-- 開閉は v-show（閉じているときは display: none）。sm 以上では常に隠す -->
             <div
+                v-show="showingNavigationDropdown"
                 id="responsive-navigation"
-                :class="{ block: showingNavigationDropdown, hidden: !showingNavigationDropdown }"
                 class="sm:hidden"
             >
                 <div class="space-y-1 pb-3 pt-2">
@@ -196,13 +197,13 @@ async function logout(): Promise<void> {
                 <!-- Responsive Settings Options -->
                 <div
                     v-if="auth.user.value"
-                    class="border-t border-gray-200 pb-1 pt-4"
+                    class="border-t border-line pb-1 pt-4"
                 >
                     <div class="px-4">
-                        <div class="text-base font-medium text-gray-800">
+                        <div class="text-base font-medium text-fg">
                             {{ auth.user.value.name }}
                         </div>
-                        <div class="text-sm font-medium text-gray-500">
+                        <div class="text-sm font-medium text-fg-subtle">
                             {{ auth.user.value.email }}
                         </div>
                     </div>
@@ -230,7 +231,7 @@ async function logout(): Promise<void> {
         <div
             v-if="logoutFailed"
             role="alert"
-            class="mx-auto max-w-7xl px-4 pt-4 text-sm text-red-600 sm:px-6 lg:px-8"
+            class="mx-auto max-w-7xl px-4 pt-4 text-sm text-danger-600 sm:px-6 lg:px-8"
         >
             ログアウトできませんでした。時間をおいて再度お試しください。
         </div>
@@ -238,7 +239,7 @@ async function logout(): Promise<void> {
         <!-- Page Heading -->
         <header
             v-if="$slots.header"
-            class="bg-white shadow-sm"
+            class="bg-surface shadow-sm"
         >
             <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
                 <slot name="header" />

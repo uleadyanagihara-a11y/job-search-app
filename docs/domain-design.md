@@ -247,6 +247,8 @@ MVP 後の優先度は、お気に入り → 担当者の招待画面 → 選考
 - class を検査している component test（4 箇所）は、`aria-current` などの属性や表示状態を見る形に直す。以後、class を検査する test は書かない。
 - M2 以降の新しい画面は、カード、ページ見出し、バッジ、表、空の状態などを部品にし、画面ファイルに見た目を直接書かない（この規約は M1.5 で CLAUDE.md のコーディング規約に追記する）。
 
+完了（2026-11-12）: token は `frontend/src/assets/app.css` の `@theme` に定義した（面 `canvas`・`surface*`・`overlay`、文字 `fg-*`、線 `line-*`、濃い面 `emphasis*`、`primary-*`・`danger-*`・`success-*`）。値は今の palette を参照し、置き換え前後で主要画面 25 状態が 0 pixel 差であることを確認した。class を検査していた test は `aria-current` と `isVisible()` に直し、responsive menu の開閉は `v-show` にした。規約は CLAUDE.md の「コーディング規約」に追記した。
+
 ### 素材の選び方と取り込み方
 
 - M2 の画面が揃った後、候補 2〜3 個で Login と求人一覧の 2 画面を試作して比べる。

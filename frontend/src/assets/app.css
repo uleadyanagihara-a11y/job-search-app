@@ -14,8 +14,59 @@
 }
 
 /*
+ * 色の token（docs/domain-design.md の 12 章）。部品・画面は Tailwind の palette（gray-*・indigo-* 等）を直接使わず、
+ * ここで意味の名前を付けた色を使う（bg-surface、text-fg-muted、border-line-strong、ring-primary-500 など）。
+ * デザイン素材に差し替えるときは、このブロックの値を書き換える。値は Breeze 由来の見た目（v3 時点）と同じにしてある。
+ */
+@theme {
+    /* 面: 画面の地、カード・header・dropdown・modal、hover した行、modal の背面 */
+    --color-canvas: var(--color-gray-100);
+    --color-surface: var(--color-white);
+    --color-surface-subtle: var(--color-gray-50);
+    --color-surface-hover: var(--color-gray-100);
+    --color-overlay: var(--color-gray-500);
+
+    /* 文字: 強い順。strong は見出し・選択中、fg は page 見出し、secondary は label・button、
+       muted は説明文・link、subtle は非選択の nav、faint は icon。on-emphasis は濃い面の上の文字 */
+    --color-fg-strong: var(--color-gray-900);
+    --color-fg: var(--color-gray-800);
+    --color-fg-secondary: var(--color-gray-700);
+    --color-fg-muted: var(--color-gray-600);
+    --color-fg-subtle: var(--color-gray-500);
+    --color-fg-faint: var(--color-gray-400);
+    --color-fg-on-emphasis: var(--color-white);
+
+    /* 線: 区切り・既定の border・入力欄の枠 */
+    --color-line-subtle: var(--color-gray-100);
+    --color-line: var(--color-gray-200);
+    --color-line-strong: var(--color-gray-300);
+
+    /* 濃い面（PrimaryButton） */
+    --color-emphasis: var(--color-gray-800);
+    --color-emphasis-hover: var(--color-gray-700);
+    --color-emphasis-active: var(--color-gray-900);
+
+    /* primary（ブランド色）: focus の ring・選択中の nav・checkbox */
+    --color-primary-50: var(--color-indigo-50);
+    --color-primary-100: var(--color-indigo-100);
+    --color-primary-400: var(--color-indigo-400);
+    --color-primary-500: var(--color-indigo-500);
+    --color-primary-600: var(--color-indigo-600);
+    --color-primary-700: var(--color-indigo-700);
+    --color-primary-800: var(--color-indigo-800);
+
+    /* 状態: danger は error・削除、success は完了の通知 */
+    --color-danger-50: var(--color-red-50);
+    --color-danger-500: var(--color-red-500);
+    --color-danger-600: var(--color-red-600);
+    --color-danger-700: var(--color-red-700);
+    --color-danger-900: var(--color-red-900);
+    --color-success-600: var(--color-green-600);
+}
+
+/*
  * Tailwind CSS 3 と同じ見た目にするための互換 style（移行ツールが追加するものと同じ）。
- * v4 は border の既定色が currentcolor になったため、v3 の既定（gray-200）に戻す。
+ * v4 は border の既定色が currentcolor になったため、v3 の既定（gray-200 = line）に戻す。
  * 外すときは、border の色に依存している要素へ色の utility を明示する。
  */
 @layer base {
@@ -24,7 +75,7 @@
     ::before,
     ::backdrop,
     ::file-selector-button {
-        border-color: var(--color-gray-200, currentcolor);
+        border-color: var(--color-line, currentcolor);
     }
 
     /* v4 は button の cursor が default になったため、v3 と同じ pointer に戻す */

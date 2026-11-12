@@ -38,7 +38,7 @@ onMounted(load);
 <template>
     <AuthenticatedLayout>
         <template #header>
-            <h1 class="text-xl font-semibold leading-tight text-gray-800">
+            <h1 class="text-xl font-semibold leading-tight text-fg">
                 Profile
             </h1>
         </template>
@@ -47,11 +47,11 @@ onMounted(load);
             <div class="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
                 <div
                     v-if="loadError"
-                    class="bg-white p-4 shadow-sm sm:rounded-lg sm:p-8"
+                    class="bg-surface p-4 shadow-sm sm:rounded-lg sm:p-8"
                 >
                     <p
                         role="alert"
-                        class="text-sm text-red-600"
+                        class="text-sm text-danger-600"
                     >
                         プロフィールを読み込めませんでした。{{ loadError }}
                     </p>
@@ -68,7 +68,7 @@ onMounted(load);
                     <!-- account 削除の直後は auth store の user が null になり、login へ遷移するまで描画しない -->
                     <div
                         v-if="auth.user.value"
-                        class="bg-white p-4 shadow-sm sm:rounded-lg sm:p-8"
+                        class="bg-surface p-4 shadow-sm sm:rounded-lg sm:p-8"
                     >
                         <UpdateProfileInformationForm
                             :user="auth.user.value"
@@ -76,18 +76,18 @@ onMounted(load);
                         />
                     </div>
 
-                    <div class="bg-white p-4 shadow-sm sm:rounded-lg sm:p-8">
+                    <div class="bg-surface p-4 shadow-sm sm:rounded-lg sm:p-8">
                         <UpdatePasswordForm class="max-w-xl" />
                     </div>
 
-                    <div class="bg-white p-4 shadow-sm sm:rounded-lg sm:p-8">
+                    <div class="bg-surface p-4 shadow-sm sm:rounded-lg sm:p-8">
                         <DeleteUserForm class="max-w-xl" />
                     </div>
                 </template>
 
                 <p
                     v-else
-                    class="px-4 text-sm text-gray-600 sm:px-0"
+                    class="px-4 text-sm text-fg-muted sm:px-0"
                 >
                     読み込み中…
                 </p>

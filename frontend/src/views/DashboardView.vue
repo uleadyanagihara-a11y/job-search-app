@@ -12,7 +12,7 @@ const justVerified = computed(() => route.query.verified === '1');
 <template>
     <AuthenticatedLayout>
         <template #header>
-            <h1 class="text-xl font-semibold leading-tight text-gray-800">
+            <h1 class="text-xl font-semibold leading-tight text-fg">
                 Dashboard
             </h1>
         </template>
@@ -22,13 +22,13 @@ const justVerified = computed(() => route.query.verified === '1');
                 <div
                     v-if="justVerified"
                     role="status"
-                    class="mb-4 px-4 text-sm font-medium text-green-600 sm:px-0"
+                    class="mb-4 px-4 text-sm font-medium text-success-600 sm:px-0"
                 >
                     メールアドレスの確認が完了しました。
                 </div>
 
-                <div class="overflow-hidden bg-white shadow-xs sm:rounded-lg">
-                    <div class="p-6 text-gray-900">
+                <div class="overflow-hidden bg-surface shadow-xs sm:rounded-lg">
+                    <div class="p-6 text-fg-strong">
                         You're logged in!
                     </div>
                 </div>

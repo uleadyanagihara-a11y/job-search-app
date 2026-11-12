@@ -29,7 +29,7 @@ async function onSubmit(): Promise<void> {
 
 <template>
     <GuestLayout>
-        <div class="mb-4 text-sm text-gray-600">
+        <div class="mb-4 text-sm text-fg-muted">
             This is a secure area of the application. Please confirm your
             password before continuing.
         </div>
@@ -37,7 +37,7 @@ async function onSubmit(): Promise<void> {
         <p
             v-if="error"
             role="alert"
-            class="mb-4 text-sm text-red-600"
+            class="mb-4 text-sm text-danger-600"
         >
             {{ error.message }}
         </p>
