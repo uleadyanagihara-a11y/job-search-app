@@ -198,7 +198,7 @@ MVP 後の優先度は、お気に入り → 担当者の招待画面 → 選考
 
 | # | 期間（目安） | 内容 |
 | --- | --- | --- |
-| M0 | 11/09〜11/13 | profile 移植の PR、本書の PR、E2E の CI job、README、nginx に `Referrer-Policy: same-origin`（password 再設定・招待の URL の token が Referer で外部に漏れないようにする。`docker/nginx/smoke-test.sh` でヘッダを確認） |
+| M0 | 11/09〜11/13 | profile 移植の PR、本書の PR、E2E の CI job、README、nginx に `Referrer-Policy: same-origin`（password 再設定・招待の URL の token が Referer で外部に漏れないようにする。`docker/nginx/smoke-test.sh` でヘッダを確認）（完了） |
 | M1 | 〜11/07 | 本書（完了） |
 | M1.5 | 11/16〜11/20 | Tailwind CSS 4 への移行と、デザインを差し替えやすくする土台（「12. デザイン」） |
 | M1.6 | 11/23〜11/27 | 日本語化（「14. 日本語化」） |
