@@ -133,7 +133,7 @@ async function onSubmit(): Promise<void> {
             <div class="mt-4 flex items-center justify-end">
                 <RouterLink
                     :to="{ name: 'password.request' }"
-                    class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 >
                     Forgot your password?
                 </RouterLink>
@@ -150,7 +150,7 @@ async function onSubmit(): Promise<void> {
         <p class="mt-4 text-center text-sm text-gray-600">
             <RouterLink
                 :to="{ name: 'register', query: route.query }"
-                class="rounded-md underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                class="rounded-md underline hover:text-gray-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             >
                 Create an account
             </RouterLink>

@@ -78,7 +78,7 @@ async function onSubmit(): Promise<void> {
             <div class="mt-4 flex items-center justify-end">
                 <RouterLink
                     :to="{ name: 'login' }"
-                    class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 >
                     Back to log in
                 </RouterLink>

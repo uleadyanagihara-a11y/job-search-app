@@ -58,8 +58,11 @@ Vue SPA（経緯と API 契約は `docs/inertia-removal-migration.md`）。Sail 
 - Node を上げるときは `.env.example` の `NODE_VERSION`、`compose.yaml` の既定値、`frontend/package.json` の `engines`/`packageManager`/`@types/node`（major を Node に合わせる。Dependabot は major を ignore）、CI の `node-version` を同時に変える。
 - `node_modules` は bind mount（`frontend/node_modules`）なので、ホストの VSCode の Vue 拡張・ESLint がそのまま使える。
 - `typescript` は `typescript-eslint` の peer 上限（`<6.1.0`）のため `~6.0.3` に固定している。
-- CSS は Tailwind CSS 3（`frontend/tailwind.config.js`）を PostCSS（`frontend/postcss.config.js`）で処理する。`@tailwindcss/vite` は入れない。Tailwind 4 への major は Dependabot で ignore している。
-  ただし Tailwind 4 への移行は業務ドメインの実装前（`docs/domain-design.md` の M1.5）に前倒しする予定で、その変更でこの記述・ignore・`@tailwindcss/vite` の扱いを見直す。
+- CSS は Tailwind CSS 4 を `@tailwindcss/vite`（`frontend/vite.config.ts` の plugin）で処理する。`tailwind.config.js` / `postcss.config.js` は無く、
+  theme・plugin（`@tailwindcss/forms`）・class を探す範囲（`@source`。`index.html` と `src/` だけ）は `frontend/src/assets/app.css` に書く。
+  `app.css` には v3 と同じ見た目にする互換 style（border の既定色 gray-200、button の cursor: pointer）がある。
+  v4 で見た目が変わりやすい点: `space-y-*` / `space-x-*` は最後以外の子に margin を付けるため、最後の子が閉じた Modal（dialog）等だと余白が残る。
+  `transform` class 単体では transform を指定しないため、重なり順を `transform` に頼らず `relative` / `z-*` で決める。`*-opacity-*` は無く `ring-black/5` のように書く。
 - devDependencies の推移的依存に修正版が無い npm audit の advisory は、記録して許容することがある（現在は ESLint・Vue Test Utils 経由の `minimatch` / `glob`。理由・前提・再評価は `docs/accepted-vulnerabilities.md`）。
   `overrides` で推移的依存を強制更新しない。許容する advisory は `frontend/audit-accepted.json` に載せ、CI の `npm audit` job が照合する。
 - Figtree は `frontend/src/assets/fonts/` に self-host している（`@font-face` は `frontend/src/assets/app.css`）。外部 font CDN は使わない。

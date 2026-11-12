@@ -1,4 +1,40 @@
 /*
+ * Tailwind CSS 4（@tailwindcss/vite で処理する。設定は tailwind.config.js ではなくこの CSS に書く）。
+ * class を探すのは index.html と src/ だけにする（自動検出のままだと tests/ や e2e/ の文字列も拾う）。
+ */
+@import 'tailwindcss' source(none);
+
+@source '../../index.html';
+@source '../';
+
+@plugin '@tailwindcss/forms';
+
+@theme {
+    --font-sans: Figtree, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+/*
+ * Tailwind CSS 3 と同じ見た目にするための互換 style（移行ツールが追加するものと同じ）。
+ * v4 は border の既定色が currentcolor になったため、v3 の既定（gray-200）に戻す。
+ * 外すときは、border の色に依存している要素へ色の utility を明示する。
+ */
+@layer base {
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentcolor);
+    }
+
+    /* v4 は button の cursor が default になったため、v3 と同じ pointer に戻す */
+    button:not(:disabled),
+    [role='button']:not(:disabled) {
+        cursor: pointer;
+    }
+}
+
+/*
  * Figtree（variable font、wght 300–900）。外部の font CDN は使わず self-host する。
  * 出典: @fontsource-variable/figtree 5.3.0 の latin / latin-ext（normal）。license は fonts/OFL.txt。
  * 日本語など範囲外の文字は unicode-range により font-sans の fallback で表示される。
@@ -20,7 +56,3 @@
     src: url('./fonts/figtree-latin-wght-normal.woff2') format('woff2');
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;

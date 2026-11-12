@@ -114,9 +114,13 @@ const maxWidthClass = computed(
                 leave-from-class="opacity-100 translate-y-0 sm:scale-100"
                 leave-to-class="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
+                <!--
+                    relative で backdrop（fixed）より上に描く。Tailwind CSS 3 は transform class だけで
+                    stacking context ができていたが、4 の transform は translate 等が無いと何も指定しない。
+                -->
                 <div
                     v-show="show"
-                    class="mb-6 transform overflow-hidden rounded-lg bg-white shadow-xl transition-all sm:mx-auto sm:w-full"
+                    class="relative mb-6 transform overflow-hidden rounded-lg bg-white shadow-xl transition-all sm:mx-auto sm:w-full"
                     :class="maxWidthClass"
                 >
                     <slot v-if="showSlot" />

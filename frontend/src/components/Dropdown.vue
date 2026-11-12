@@ -25,11 +25,11 @@ const widthClass = computed(() => ({ 48: 'w-48' })[props.width]);
 
 const alignmentClasses = computed(() => {
     if (props.align === 'left') {
-        return 'ltr:origin-top-left rtl:origin-top-right start-0';
+        return 'ltr:origin-top-left rtl:origin-top-right inset-s-0';
     }
 
     if (props.align === 'right') {
-        return 'ltr:origin-top-right rtl:origin-top-left end-0';
+        return 'ltr:origin-top-right rtl:origin-top-left inset-e-0';
     }
 
     return 'origin-top';
@@ -69,7 +69,7 @@ const alignmentClasses = computed(() => {
                 @click="open = false"
             >
                 <div
-                    class="rounded-md ring-1 ring-black ring-opacity-5"
+                    class="rounded-md ring-1 ring-black/5"
                     :class="contentClasses"
                 >
                     <slot name="content" />
