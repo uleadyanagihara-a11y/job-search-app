@@ -1,6 +1,6 @@
 # Job Search App
 
-Laravel（API）とVue 3 + TypeScriptのSPA（`frontend/`）で構成した求人検索アプリケーションです。現在はユーザー登録・ログイン・メール確認・プロフィール編集のAPIと、SPAのrouter・認証まわりの土台を備えています（画面は移植中）。
+Laravel（API）とVue 3 + TypeScriptのSPA（`frontend/`）で構成した求人検索アプリケーションです。現在はアカウントまわりの機能（ユーザー登録、ログイン・ログアウト、メール確認、パスワード再設定・再確認、プロフィール編集、パスワード変更、アカウント削除）を、APIとSPAの画面の両方で備えています。求人・応募の機能は未実装で、MVPの設計とスケジュールは[`docs/domain-design.md`](docs/domain-design.md)にあります。
 
 ローカル開発環境にはLaravel Sailを使用します。ホスト側にPHP、Composer、Node.js、npmを個別にインストールする必要はありません。Sailの準備完了後は、PHP、Artisan、Composerを必ず`./vendor/bin/sail`経由で、`frontend/`のnpmをComposeの`frontend` service経由で実行してください。
 
@@ -10,10 +10,22 @@ Laravel（API）とVue 3 + TypeScriptのSPA（`frontend/`）で構成した求�
 - PHP 8.5（Sailランタイム）
 - Laravel Sanctum（Cookie + CSRFによるSPA認証）
 - Vue 3 / TypeScript / Vue Router / Vite 8（`frontend/`、Node 24.22.0）
+- Tailwind CSS 3（PostCSS）
+- Vitest + Vue Test Utils（unit/component/router）、Playwright（E2E）
 - Nginx 1.28.0
 - MySQL 8.4.11
 - Redis 8.10.0
 - Mailpit 1.30.6
+
+## ドキュメント
+
+| ファイル | 内容 |
+| --- | --- |
+| [`docs/domain-design.md`](docs/domain-design.md) | 求人・応募ドメインのMVP設計とスケジュール（Milestone） |
+| [`docs/inertia-removal-migration.md`](docs/inertia-removal-migration.md) | Inertia から SPA + API への移行の経緯、API 契約、テスト方針 |
+| [`docs/phase0-api-contract.md`](docs/phase0-api-contract.md) | 移行の Phase 0 で確定した API 契約（path・status・error schema・認証方式）の記録 |
+| [`docs/accepted-vulnerabilities.md`](docs/accepted-vulnerabilities.md) | 許容している npm audit の advisory と再評価の手順、CI の実行制限 |
+| [`CLAUDE.md`](CLAUDE.md) | 開発環境・CI・依存更新の運用ルール（Claude Code 向けだが人が読んでもよい） |
 
 ## 前提条件
 
@@ -268,6 +280,28 @@ docker compose rm -sf laravel.e2e nginx-e2e
 - Playwright を上げるときは、`frontend/package.json`の`@playwright/test`と`compose.yaml`の`frontend-e2e`の image tag を同時に変えます（Dependabot は対象外にしています）。CI の E2E job は両者が違うと失敗します。
 - CI（GitHub Actions の`e2e` job）でも同じ Compose の構成で実行し、失敗時は HTML レポートと trace を artifact `playwright-report` に 7 日間残します。
 
+## CI と依存更新
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml)が、PR・mainへのpush・毎週月曜9:00（JST）に次を実行します。
+
+| job | 内容 |
+| --- | --- |
+| Pint | PHP のコード整形の検査 |
+| Composer audit / npm audit | 依存の脆弱性の検査（npm は`frontend/audit-accepted.json`の許容リストと照合） |
+| Laravel tests | PHPUnit（MySQL 8.4 + Redis） |
+| Frontend | `frontend/`の lint・型検査・Vitest・build |
+| E2E | Playwright（ローカルと同じ Compose の test profile。job 全体で約 5 分） |
+
+週次の実行は、コードを変えなくても新しい advisory や修正版の公開を検出するためです。
+
+依存の更新は Dependabot（[`.github/dependabot.yml`](.github/dependabot.yml)）が毎週月曜に PR を作ります。自動マージはせず、CI が通ったことを確認して手動でマージします。マージ後はローカルにも反映します。
+
+```bash
+./vendor/bin/sail composer install
+docker compose run --rm --no-deps frontend npm ci
+docker compose restart frontend
+```
+
 ## Redis動作確認
 
 Laravel から Redis へ接続し、通常キーの書き込み・取得・削除と、TTL 付きキーの期限切れをまとめて確認できます。`--ttl`には期限切れまでの秒数（1〜300）を指定します。
@@ -321,6 +355,23 @@ FORWARD_MAILPIT_DASHBOARD_PORT=8027
 
 ```bash
 ./vendor/bin/sail artisan optimize:clear
+```
+
+### `docker/nginx/default.conf`の編集後にnginxが起動しない
+
+Docker Desktop + WSL 2 では、ファイル単位の bind mount がファイルの編集で壊れ、`error mounting ... default.conf.template`で起動に失敗することがあります。`restart`ではなく container を作り直します。
+
+```bash
+docker compose up -d --force-recreate nginx
+./docker/nginx/smoke-test.sh
+```
+
+### branch 切替のあと画面が表示されない（`.vue`が 500 になる）
+
+切替中に`frontend/vite.config.ts`が一時的に消えると、Vite が Vue plugin なしで再起動したままになります。`frontend`を再起動します。
+
+```bash
+docker compose restart frontend
 ```
 
 ## Git操作
