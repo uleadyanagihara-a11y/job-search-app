@@ -265,7 +265,8 @@ docker compose rm -sf laravel.e2e nginx-e2e
 - Laravel は E2E 専用の`laravel.e2e`で、DB は`testing_e2e`です。開発用 DB（`job_search_app`）とPHPUnit用の`testing`は更新しません。`laravel.e2e`は起動のたびに`migrate:fresh`するため、実行後に`docker compose rm -sf laravel.e2e nginx-e2e`で消しておくと、次回は空のDBから始まります。
 - `laravel.e2e`と`nginx-e2e`は`sail stop` / `sail down`の対象外です（`test` profileのため）。残っていると`sail down`がnetworkを削除できません。
 - 失敗時の trace / screenshot は`frontend/test-results/`、HTML レポートは`frontend/playwright-report/`に出力されます。
-- Playwright を上げるときは、`frontend/package.json`の`@playwright/test`と`compose.yaml`の`frontend-e2e`の image tag を同時に変えます（Dependabot は対象外にしています）。
+- Playwright を上げるときは、`frontend/package.json`の`@playwright/test`と`compose.yaml`の`frontend-e2e`の image tag を同時に変えます（Dependabot は対象外にしています）。CI の E2E job は両者が違うと失敗します。
+- CI（GitHub Actions の`e2e` job）でも同じ Compose の構成で実行し、失敗時は HTML レポートと trace を artifact `playwright-report` に 7 日間残します。
 
 ## Redis動作確認
 

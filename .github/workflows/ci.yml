@@ -212,7 +212,7 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      # unit/component/router（Vitest）。E2E（Playwright）の job は Phase 5 着手前に追加する。
+      # unit/component/router（Vitest）。E2E（Playwright）は e2e job。
       - name: Unit tests
         run: npm run test:run
 
@@ -223,3 +223,66 @@ jobs:
         run: |
           test -f dist/index.html
           ls dist/assets/*.js
+
+  # ローカルと同じ Compose の test profile（laravel.e2e / nginx-e2e / frontend-e2e）で Playwright を動かす。
+  # Nginx の振り分けを含めて検査するため、ホストで artisan serve / Vite を動かす形にはしない。
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Dependabot は Playwright を ignore しているので、compose.yaml の image tag と lock の version のずれをここで検出する
+      - name: Verify Playwright versions
+        run: |
+          lock="$(jq -r '.packages["node_modules/@playwright/test"].version' frontend/package-lock.json)"
+          image="$(sed -n 's#.*mcr\.microsoft\.com/playwright:v\([0-9.]*\)-.*#\1#p' compose.yaml)"
+          echo "@playwright/test ${lock} / image v${image}"
+          test -n "${lock}"
+          test "${lock}" = "${image}"
+
+      # Sail の Dockerfile は vendor/laravel/sail にあるため、image の build より先に入れる
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      # laravel.e2e と mysql は .env を読む（ローカルの開発環境を再現するため .env.example を使う）。
+      # bind mount へ書き込めるよう、container の uid を runner（1001）に合わせる（shell の環境変数は .env より優先される）。
+      - name: Prepare .env
+        run: |
+          cp .env.example .env
+          sed -i "s#^APP_KEY=.*#APP_KEY=base64:$(openssl rand -base64 32)#" .env
+          echo "WWWUSER=$(id -u)" >> "$GITHUB_ENV"
+          echo "WWWGROUP=$(id -g)" >> "$GITHUB_ENV"
+
+      - name: Build Sail image
+        run: docker compose build laravel.test
+
+      # frontend-e2e は npm ci をせず ./frontend/node_modules を使う
+      - name: Install npm dependencies
+        run: docker compose run --rm --no-deps frontend npm ci
+
+      # 依存（mysql / redis / mailpit / laravel.e2e / frontend / nginx-e2e）も起動する
+      - name: E2E
+        run: docker compose run --rm frontend-e2e
+
+      - name: Container logs
+        if: failure()
+        run: docker compose --profile test logs --no-color laravel.e2e nginx-e2e frontend mysql
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
