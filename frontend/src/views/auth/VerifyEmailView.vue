@@ -84,21 +84,21 @@ async function logout(): Promise<void> {
         <p
             v-if="callbackError && !status"
             role="alert"
-            class="mb-4 text-sm text-red-600"
+            class="mb-4 text-sm text-danger-600"
         >
             {{ callbackError }}
         </p>
 
         <!-- 認証済みでも callback の失敗はここに表示する（guard が dashboard へ送らない）。再送は不要。 -->
         <template v-if="auth.isVerified.value">
-            <div class="mb-4 text-sm text-gray-600">
+            <div class="mb-4 text-sm text-fg-muted">
                 Your email address is already verified.
             </div>
 
             <div class="mt-4 flex items-center justify-end">
                 <RouterLink
                     :to="{ name: 'dashboard' }"
-                    class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    class="rounded-md text-sm text-fg-muted underline hover:text-fg-strong focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                 >
                     Go to Dashboard
                 </RouterLink>
@@ -106,7 +106,7 @@ async function logout(): Promise<void> {
         </template>
 
         <template v-else>
-            <div class="mb-4 text-sm text-gray-600">
+            <div class="mb-4 text-sm text-fg-muted">
                 Thanks for signing up! Before getting started, could you verify your
                 email address by clicking on the link we just emailed to you? If you
                 didn't receive the email, we will gladly send you another.
@@ -115,7 +115,7 @@ async function logout(): Promise<void> {
             <div
                 v-if="status"
                 role="status"
-                class="mb-4 text-sm font-medium text-green-600"
+                class="mb-4 text-sm font-medium text-success-600"
             >
                 {{ status }}
             </div>
@@ -123,7 +123,7 @@ async function logout(): Promise<void> {
             <p
                 v-if="error"
                 role="alert"
-                class="mb-4 text-sm text-red-600"
+                class="mb-4 text-sm text-danger-600"
             >
                 {{ error.message }}
             </p>
@@ -131,7 +131,7 @@ async function logout(): Promise<void> {
             <p
                 v-if="logoutFailed"
                 role="alert"
-                class="mb-4 text-sm text-red-600"
+                class="mb-4 text-sm text-danger-600"
             >
                 ログアウトできませんでした。時間をおいて再度お試しください。
             </p>
@@ -144,7 +144,7 @@ async function logout(): Promise<void> {
 
                     <button
                         type="button"
-                        class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        class="rounded-md text-sm text-fg-muted underline hover:text-fg-strong focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                         :disabled="loggingOut"
                         @click="logout"
                     >

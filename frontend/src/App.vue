@@ -13,12 +13,12 @@ function reload(): void {
     <div
         v-if="auth.loadError.value"
         role="alert"
-        class="bg-red-50 px-4 py-3 text-sm text-red-700"
+        class="bg-danger-50 px-4 py-3 text-sm text-danger-700"
     >
         ログイン状態を確認できませんでした。
         <button
             type="button"
-            class="ms-2 underline hover:text-red-900"
+            class="ms-2 underline hover:text-danger-900"
             @click="reload"
         >
             再読み込み

@@ -62,11 +62,11 @@ const resending = resendForm.processing;
 <template>
     <section>
         <header>
-            <h2 class="text-lg font-medium text-gray-900">
+            <h2 class="text-lg font-medium text-fg-strong">
                 Profile Information
             </h2>
 
-            <p class="mt-1 text-sm text-gray-600">
+            <p class="mt-1 text-sm text-fg-muted">
                 Update your account's profile information and email address.
             </p>
         </header>
@@ -74,7 +74,7 @@ const resending = resendForm.processing;
         <p
             v-if="error"
             role="alert"
-            class="mt-6 text-sm text-red-600"
+            class="mt-6 text-sm text-danger-600"
         >
             {{ error.message }}
         </p>
@@ -133,12 +133,12 @@ const resending = resendForm.processing;
             </div>
 
             <div v-if="unverified">
-                <p class="mt-2 text-sm text-gray-800">
+                <p class="mt-2 text-sm text-fg">
                     Your email address is unverified.
                     <!-- 旧 Link（method="post" as="button"）は API を呼ぶ button にする（§3.3）。 -->
                     <button
                         type="button"
-                        class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        class="rounded-md text-sm text-fg-muted underline hover:text-fg-strong focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                         :disabled="resending"
                         @click="resendVerification"
                     >
@@ -149,7 +149,7 @@ const resending = resendForm.processing;
                 <div
                     v-if="verificationStatus"
                     role="status"
-                    class="mt-2 text-sm font-medium text-green-600"
+                    class="mt-2 text-sm font-medium text-success-600"
                 >
                     {{ verificationStatus }}
                 </div>
@@ -157,7 +157,7 @@ const resending = resendForm.processing;
                 <p
                     v-if="resendError"
                     role="alert"
-                    class="mt-2 text-sm text-red-600"
+                    class="mt-2 text-sm text-danger-600"
                 >
                     {{ resendError.message }}
                 </p>
@@ -177,7 +177,7 @@ const resending = resendForm.processing;
                     <p
                         v-if="recentlySuccessful"
                         role="status"
-                        class="text-sm text-gray-600"
+                        class="text-sm text-fg-muted"
                     >
                         Saved.
                     </p>

@@ -7,7 +7,7 @@ const props = withDefaults(
         width?: '48';
         contentClasses?: string;
     }>(),
-    { align: 'right', width: '48', contentClasses: 'py-1 bg-white' },
+    { align: 'right', width: '48', contentClasses: 'py-1 bg-surface' },
 );
 
 const open = ref(false);

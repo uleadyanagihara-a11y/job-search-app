@@ -157,5 +157,14 @@ minor・patch はエコシステムごとに 1 PR にまとめ、major は個別
 
 ## コーディング規約
 
-まだ規約を固めるだけのドメインコードが無いため未記載。機能追加時に
-コントローラ/フロントの型・命名パターンが固まった時点でここに追記する。
+コントローラ/フロントの型・命名パターンは、M2 の最後（`docs/domain-design.md` の 11 章）に追記する。
+
+### フロントの見た目（デザインを後から差し替えるため。`docs/domain-design.md` の 12 章）
+
+- 色は `frontend/src/assets/app.css` の token（`canvas`・`surface`・`fg-*`・`line-*`・`emphasis`・`primary-*`・`danger-*`・`success-*`）だけを使う。
+  Tailwind の palette（`gray-*`・`indigo-*`・`red-*` 等）を部品・画面に直接書かない。足りない色は、先に token を足す（意味の名前を付ける）。
+- 新しい画面（M2 以降）は、カード・ページ見出し・バッジ・表・空の状態などを `frontend/src/components/` の部品にし、画面ファイル（`views/`）には配置（grid・余白）以外の見た目を書かない。
+  既存の画面（Breeze 由来）は、触るときに部品へ寄せる。
+- 開閉などの動きは既存の部品（`Dropdown`・`Modal` 等）に任せる。部品が付けている `aria-*` を外さない。
+- test で class を検査しない。状態は `aria-current`・`aria-expanded`・`aria-invalid` などの属性、表示されているか（`isVisible()`、E2E は `toBeVisible()`）、role・label で確かめる。
+  表示の切り替えに Tailwind の `hidden` class を使うと jsdom で表示状態を検査できないため、`v-show` や `hidden` 属性を使う。

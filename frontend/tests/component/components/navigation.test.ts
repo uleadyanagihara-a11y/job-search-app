@@ -35,10 +35,9 @@ describe('NavLink', () => {
             global: { plugins: [router] },
         });
 
+        // active かどうかは aria-current で見る（見た目の class は検査しない）
         expect(active.get('a').attributes()).toMatchObject({ href: '/dashboard', 'aria-current': 'page' });
-        expect(active.get('a').classes()).toContain('border-indigo-400');
         expect(inactive.get('a').attributes('aria-current')).toBeUndefined();
-        expect(inactive.get('a').classes()).toContain('border-transparent');
     });
 
     it('click で router 遷移する', async () => {
