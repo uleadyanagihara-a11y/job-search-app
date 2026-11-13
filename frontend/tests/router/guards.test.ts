@@ -6,7 +6,7 @@ import type { User } from '@/types/api';
 // vi.mock の factory は作り直されず、mock の呼び出し履歴は restoreMocks（vitest.config.ts）で消している。
 vi.mock('@/api/auth', () => ({ fetchUser: vi.fn() }));
 
-const verifiedUser: User = { id: 1, name: 'Test', email: 'test@example.com', email_verified_at: '2026-10-01T00:00:00+09:00' };
+const verifiedUser: User = { id: 1, name: 'Test', email: 'test@example.com', email_verified_at: '2026-10-01T00:00:00+09:00', role: 'seeker', company_id: null };
 const unverifiedUser: User = { ...verifiedUser, email_verified_at: null };
 
 async function createTestRouter(user: User | null | Error) {

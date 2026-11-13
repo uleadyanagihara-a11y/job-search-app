@@ -2,6 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Enums\Role;
+use App\Models\Company;
+use App\Models\CompanyMember;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -30,6 +33,7 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'role' => Role::Seeker,
         ];
     }
 
@@ -41,5 +45,20 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
         ]);
+    }
+
+    /**
+     * 企業担当者。企業を渡さなければ新しい企業を作る。
+     */
+    public function companyMember(?Company $company = null): static
+    {
+        return $this
+            ->state(fn (array $attributes) => ['role' => Role::Company])
+            ->afterCreating(function (User $user) use ($company) {
+                $member = new CompanyMember;
+                $member->company()->associate($company ?? Company::factory()->create());
+                $member->user()->associate($user);
+                $member->save();
+            });
     }
 }

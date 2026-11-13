@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Api;
 
+use App\Enums\Role;
+use App\Models\Company;
 use App\Models\User;
 use App\Notifications\EmailChangedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,6 +29,8 @@ class ProfileTest extends TestCase
                 'name' => $user->name,
                 'email' => $user->email,
                 'email_verified_at' => $user->email_verified_at->clone()->utc()->format('Y-m-d\TH:i:s\Z'),
+                'role' => 'seeker',
+                'company_id' => null,
             ],
         ]);
     }
@@ -150,6 +154,26 @@ class ProfileTest extends TestCase
 
     // --- M2（docs/domain-api-contract.md M2.2・M2.7）---
 
+    public function test_role_and_company_cannot_be_changed_via_profile_update(): void
+    {
+        $user = User::factory()->create();
+        $company = Company::factory()->create();
+
+        $this->actingAs($user)->fromFrontend()->patchJson('/api/profile', [
+            'name' => 'Test User',
+            'email' => $user->email,
+            'role' => 'company',
+            'company_id' => $company->id,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.role', 'seeker')
+            ->assertJsonPath('data.company_id', null);
+
+        $user->refresh();
+        $this->assertSame(Role::Seeker, $user->role);
+        $this->assertNull($user->companyMember);
+    }
+
     /**
      * @return array<string, array{array<string, string>}>
      */
@@ -221,5 +245,32 @@ class ProfileTest extends TestCase
 
         $this->assertSame('Renamed', $user->refresh()->name);
         Notification::assertNothingSent();
+    }
+
+    public function test_last_member_of_a_company_cannot_delete_their_account(): void
+    {
+        $user = User::factory()->companyMember()->create();
+
+        $this->actingAs($user)->fromFrontend()->deleteJson('/api/profile', ['password' => 'password'])
+            ->assertStatus(409)
+            ->assertJson(['code' => 'conflict']);
+
+        $this->assertNotNull($user->fresh());
+        $this->assertDatabaseHas('company_members', ['user_id' => $user->id]);
+        $this->assertAuthenticatedAs($user, 'web');
+    }
+
+    public function test_company_member_can_delete_their_account_when_another_member_remains(): void
+    {
+        $company = Company::factory()->create();
+        $user = User::factory()->companyMember($company)->create();
+        User::factory()->companyMember($company)->create();
+
+        $this->actingAs($user)->fromFrontend()->deleteJson('/api/profile', ['password' => 'password'])
+            ->assertNoContent();
+
+        $this->assertNull($user->fresh());
+        $this->assertDatabaseMissing('company_members', ['user_id' => $user->id]);
+        $this->assertDatabaseCount('company_members', 1);
     }
 }

@@ -6,7 +6,7 @@ import type { User } from '@/types/api';
 // 認証 API（docs/phase0-api-contract.md §0.2）の endpoint・body と、response の形の検証。
 // CSRF・419・error の変換は tests/unit/api/client.test.ts で確認済みなので、ここは各関数の責務に絞る。
 
-const user: User = { id: 1, name: 'Test', email: 'test@example.com', email_verified_at: null };
+const user: User = { id: 1, name: 'Test', email: 'test@example.com', email_verified_at: null, role: 'seeker', company_id: null };
 
 function jsonResponse(status: number, body: unknown): Response {
     return new Response(JSON.stringify(body), {
@@ -73,6 +73,10 @@ describe('fetchUser', () => {
         ['id が文字列', { ...user, id: '1' }],
         ['email_verified_at が無い', { id: 1, name: 'Test', email: 'test@example.com' }],
         ['email_verified_at が真偽値', { ...user, email_verified_at: true }],
+        // role は画面の振り分け（router guard の meta.roles）に使う。
+        ['role が無い', { id: 1, name: 'Test', email: 'test@example.com', email_verified_at: null, company_id: null }],
+        ['role が未知の値', { ...user, role: 'admin' }],
+        ['company_id が文字列', { ...user, company_id: '1' }],
     ])('契約外の形の user（%s）は unexpected_response にする', async (_, data) => {
         stubFetch(() => jsonResponse(200, { data }));
 

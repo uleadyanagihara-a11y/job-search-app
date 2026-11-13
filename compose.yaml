@@ -100,12 +100,13 @@ services:
             SANCTUM_STATEFUL_DOMAINS: localhost
             # 開発側で config:cache していても、その（開発 DB を向いた）cache を読まない
             APP_CONFIG_CACHE: /tmp/laravel-e2e-config.php
-        # 起動のたびに testing_e2e を作り直す。artisan serve は --no-reload を付けないと
+        # 起動のたびに testing_e2e を作り直し、E2E 用の user・企業・招待（メールは Mailpit へ）を入れる（database/seeders/E2eSeeder.php）。
+        # artisan serve は --no-reload を付けないと
         # .env にある key の環境変数を外して子 process を起動し、DB_DATABASE が .env の値（開発 DB）に戻る。
         command:
             - sh
             - -c
-            - 'php artisan migrate:fresh --force && exec php -d variables_order=EGPCS artisan serve --host=0.0.0.0 --port=80 --no-reload'
+            - 'php artisan migrate:fresh --force --seed --seeder=E2eSeeder && exec php -d variables_order=EGPCS artisan serve --host=0.0.0.0 --port=80 --no-reload'
         volumes:
             - '.:/var/www/html'
         networks:
