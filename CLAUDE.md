@@ -159,6 +159,15 @@ minor・patch はエコシステムごとに 1 PR にまとめ、major は個別
 
 コントローラ/フロントの型・命名パターンは、M2 の最後（`docs/domain-design.md` の 11 章）に追記する。
 
+### 言語（日本語のみ。`docs/domain-design.md` の 14 章）
+
+- 多言語化はしない。SPA の文言は vue-i18n を使わず、`.vue`・route の `meta.title` に直接日本語で書く。
+- Laravel の locale は `ja`。validation の文は `lang/ja/validation.php`、通知メールの文は `lang/ja.json`。
+  request に field を足したら、`lang/ja/validation.php` の `attributes` に表示名も足す（無いと field 名がそのまま出る）。
+- API の `message` は日本語で書くが、SPA は `code` で分岐し `message` の文言に依存しない。
+- test は表示している日本語の label・role の name で探す。Playwright の `getByLabel` / `getByRole` の name は部分一致なので、
+  一方が他方を含む label（「パスワード」と「新しいパスワード（確認）」等）は `exact: true` を付ける。
+
 ### フロントの見た目（デザインを後から差し替えるため。`docs/domain-design.md` の 12 章）
 
 - 色は `frontend/src/assets/app.css` の token（`canvas`・`surface`・`fg-*`・`line-*`・`emphasis`・`primary-*`・`danger-*`・`success-*`）だけを使う。

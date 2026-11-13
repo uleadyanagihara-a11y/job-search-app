@@ -62,13 +62,11 @@ function closeModal(): void {
     <section>
         <header>
             <h2 class="text-lg font-medium text-fg-strong">
-                Delete Account
+                アカウントの削除
             </h2>
 
             <p class="mt-1 text-sm text-fg-muted">
-                Once your account is deleted, all of its resources and data will
-                be permanently deleted. Before deleting your account, please
-                download any data or information that you wish to retain.
+                アカウントを削除すると、すべてのデータが完全に削除され、元に戻せません。残しておきたい情報は、削除する前に控えておいてください。
             </p>
         </header>
 
@@ -76,7 +74,7 @@ function closeModal(): void {
             class="mt-6"
             @click="confirmUserDeletion"
         >
-            Delete Account
+            アカウントを削除
         </DangerButton>
 
         <!-- attrs は Modal の root（dialog）に付く。 -->
@@ -94,13 +92,11 @@ function closeModal(): void {
                     id="delete-user-title"
                     class="text-lg font-medium text-fg-strong"
                 >
-                    Are you sure you want to delete your account?
+                    アカウントを削除してもよろしいですか？
                 </h2>
 
                 <p class="mt-1 text-sm text-fg-muted">
-                    Once your account is deleted, all of its resources and data
-                    will be permanently deleted. Please enter your password to
-                    confirm you would like to permanently delete your account.
+                    アカウントを削除すると、すべてのデータが完全に削除され、元に戻せません。削除する場合は、パスワードを入力してください。
                 </p>
 
                 <p
@@ -114,7 +110,7 @@ function closeModal(): void {
                 <div class="mt-6">
                     <InputLabel
                         for="delete_user_password"
-                        value="Password"
+                        value="パスワード"
                         class="sr-only"
                     />
 
@@ -124,7 +120,7 @@ function closeModal(): void {
                         v-model="data.password"
                         type="password"
                         class="mt-1 block w-3/4"
-                        placeholder="Password"
+                        placeholder="パスワード"
                         autocomplete="current-password"
                         :aria-invalid="errors.password ? 'true' : undefined"
                         :aria-describedby="errors.password ? 'delete_user_password-error' : undefined"
@@ -137,9 +133,9 @@ function closeModal(): void {
                     />
                 </div>
 
-                <div class="mt-6 flex justify-end">
+                <div class="mt-6 flex flex-wrap justify-end gap-y-2">
                     <SecondaryButton @click="closeModal">
-                        Cancel
+                        キャンセル
                     </SecondaryButton>
 
                     <DangerButton
@@ -147,7 +143,7 @@ function closeModal(): void {
                         class="ms-3"
                         :disabled="processing"
                     >
-                        Delete Account
+                        アカウントを削除
                     </DangerButton>
                 </div>
             </form>

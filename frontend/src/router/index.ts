@@ -31,44 +31,44 @@ const APP_NAME = 'Job Search App';
 export const routes: RouteRecordRaw[] = [
     // 公開の Welcome 画面は持たない。未ログインなら dashboard の guard で login へ送られる。
     { path: '/', name: 'home', redirect: { name: 'dashboard' } },
-    { path: '/login', name: 'login', component: LoginView, meta: { title: 'Log in', access: 'guest' } },
-    { path: '/register', name: 'register', component: RegisterView, meta: { title: 'Register', access: 'guest' } },
+    { path: '/login', name: 'login', component: LoginView, meta: { title: 'ログイン', access: 'guest' } },
+    { path: '/register', name: 'register', component: RegisterView, meta: { title: 'アカウント登録', access: 'guest' } },
     {
         path: '/forgot-password',
         name: 'password.request',
         component: ForgotPasswordView,
-        meta: { title: 'Forgot Password', access: 'guest' },
+        meta: { title: 'パスワードの再設定', access: 'guest' },
     },
     {
         path: '/reset-password/:token',
         name: 'password.reset',
         component: ResetPasswordView,
-        meta: { title: 'Reset Password', access: 'guest' },
+        meta: { title: 'パスワードの再設定', access: 'guest' },
     },
     {
         path: '/verify-email',
         name: 'verification.notice',
         component: VerifyEmailView,
-        meta: { title: 'Email Verification', access: 'auth' },
+        meta: { title: 'メールアドレスの確認', access: 'auth' },
     },
     {
         path: '/confirm-password',
         name: 'password.confirm',
         component: ConfirmPasswordView,
-        meta: { title: 'Confirm Password', access: 'auth' },
+        meta: { title: 'パスワードの確認', access: 'auth' },
     },
     {
         path: '/dashboard',
         name: 'dashboard',
         component: DashboardView,
-        meta: { title: 'Dashboard', access: 'auth', verified: true },
+        meta: { title: 'ダッシュボード', access: 'auth', verified: true },
     },
-    { path: '/profile', name: 'profile', component: ProfileView, meta: { title: 'Profile', access: 'auth' } },
+    { path: '/profile', name: 'profile', component: ProfileView, meta: { title: 'プロフィール', access: 'auth' } },
     {
         path: '/:pathMatch(.*)*',
         name: 'not-found',
         component: NotFoundView,
-        meta: { title: 'Not Found', access: 'public' },
+        meta: { title: 'ページが見つかりません', access: 'public' },
     },
 ];
 

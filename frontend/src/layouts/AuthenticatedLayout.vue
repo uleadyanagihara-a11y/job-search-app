@@ -14,8 +14,8 @@ const router = useRouter();
 
 // desktop と responsive menu はこの一覧から描画し、片方だけに項目を足すことが無いようにする。
 // navigationItems は上段の navigation、settingsItems は user 名の dropdown（responsive では user 情報の下）に並べる。
-const navigationItems = [{ name: 'dashboard', label: 'Dashboard' }] as const;
-const settingsItems = [{ name: 'profile', label: 'Profile' }] as const;
+const navigationItems = [{ name: 'dashboard', label: 'ダッシュボード' }] as const;
+const settingsItems = [{ name: 'profile', label: 'プロフィール' }] as const;
 
 function isActive(name: string): boolean {
     return route.name === name;
@@ -132,7 +132,7 @@ async function logout(): Promise<void> {
                                         :disabled="loggingOut"
                                         @click="logout"
                                     >
-                                        Log Out
+                                        ログアウト
                                     </DropdownLink>
                                 </template>
                             </Dropdown>
@@ -148,7 +148,7 @@ async function logout(): Promise<void> {
                             class="inline-flex items-center justify-center rounded-md p-2 text-fg-faint transition duration-150 ease-in-out hover:bg-surface-hover hover:text-fg-subtle focus:bg-surface-hover focus:text-fg-subtle focus:outline-hidden"
                             @click="showingNavigationDropdown = !showingNavigationDropdown"
                         >
-                            <span class="sr-only">Navigation</span>
+                            <span class="sr-only">メニュー</span>
                             <svg
                                 class="h-6 w-6"
                                 stroke="currentColor"
@@ -221,7 +221,7 @@ async function logout(): Promise<void> {
                             :disabled="loggingOut"
                             @click="logout"
                         >
-                            Log Out
+                            ログアウト
                         </ResponsiveNavLink>
                     </div>
                 </div>

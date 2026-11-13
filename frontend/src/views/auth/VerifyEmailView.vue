@@ -92,7 +92,7 @@ async function logout(): Promise<void> {
         <!-- 認証済みでも callback の失敗はここに表示する（guard が dashboard へ送らない）。再送は不要。 -->
         <template v-if="auth.isVerified.value">
             <div class="mb-4 text-sm text-fg-muted">
-                Your email address is already verified.
+                メールアドレスは確認済みです。
             </div>
 
             <div class="mt-4 flex items-center justify-end">
@@ -100,16 +100,14 @@ async function logout(): Promise<void> {
                     :to="{ name: 'dashboard' }"
                     class="rounded-md text-sm text-fg-muted underline hover:text-fg-strong focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                 >
-                    Go to Dashboard
+                    ダッシュボードへ
                 </RouterLink>
             </div>
         </template>
 
         <template v-else>
             <div class="mb-4 text-sm text-fg-muted">
-                Thanks for signing up! Before getting started, could you verify your
-                email address by clicking on the link we just emailed to you? If you
-                didn't receive the email, we will gladly send you another.
+                ご登録ありがとうございます。お送りしたメールのリンクを開いて、メールアドレスを確認してください。メールが届いていない場合は、もう一度お送りします。
             </div>
 
             <div
@@ -137,9 +135,9 @@ async function logout(): Promise<void> {
             </p>
 
             <form @submit.prevent="resend">
-                <div class="mt-4 flex items-center justify-between">
+                <div class="mt-4 flex flex-wrap items-center justify-between gap-y-2">
                     <PrimaryButton :disabled="processing">
-                        Resend Verification Email
+                        確認メールを再送信
                     </PrimaryButton>
 
                     <button
@@ -148,7 +146,7 @@ async function logout(): Promise<void> {
                         :disabled="loggingOut"
                         @click="logout"
                     >
-                        Log Out
+                        ログアウト
                     </button>
                 </div>
             </form>

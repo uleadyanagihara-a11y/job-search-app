@@ -30,8 +30,7 @@ async function onSubmit(): Promise<void> {
 <template>
     <GuestLayout>
         <div class="mb-4 text-sm text-fg-muted">
-            This is a secure area of the application. Please confirm your
-            password before continuing.
+            この操作を続けるには、パスワードを入力してください。
         </div>
 
         <p
@@ -46,7 +45,7 @@ async function onSubmit(): Promise<void> {
             <div>
                 <InputLabel
                     for="password"
-                    value="Password"
+                    value="パスワード"
                 />
 
                 <TextInput
@@ -68,12 +67,12 @@ async function onSubmit(): Promise<void> {
                 />
             </div>
 
-            <div class="mt-4 flex justify-end">
+            <div class="mt-4 flex flex-wrap justify-end gap-y-2">
                 <PrimaryButton
                     class="ms-4"
                     :disabled="processing"
                 >
-                    Confirm
+                    確認
                 </PrimaryButton>
             </div>
         </form>

@@ -200,8 +200,8 @@ MVP 後の優先度は、お気に入り → 担当者の招待画面 → 選考
 | --- | --- | --- |
 | M0 | 11/09〜11/13 | profile 移植の PR、本書の PR、E2E の CI job、README、nginx に `Referrer-Policy: same-origin`（password 再設定・招待の URL の token が Referer で外部に漏れないようにする。`docker/nginx/smoke-test.sh` でヘッダを確認）（完了） |
 | M1 | 〜11/07 | 本書（完了） |
-| M1.5 | 11/16〜11/20 | Tailwind CSS 4 への移行と、デザインを差し替えやすくする土台（「12. デザイン」） |
-| M1.6 | 11/23〜11/27 | 日本語化（「14. 日本語化」） |
+| M1.5 | 11/16〜11/20 | Tailwind CSS 4 への移行と、デザインを差し替えやすくする土台（「12. デザイン」）（完了） |
+| M1.6 | 11/23〜11/27 | 日本語化（「14. 日本語化」）（完了） |
 | M2 | 11/30〜12/11 | 求職者プロフィールの編集画面、複数ロールの E2E helper、M2 の最後に CLAUDE.md のコーディング規約の追記、`users.role`、`companies`・`company_members`・招待（artisan、招待受諾画面）、`seeker_profiles`、最初の Policy、`api.verified` の priority 変更、ロールによる画面の振り分け、`/api/user` への `role` の追加、企業の停止、E2E 用 seeder、開発用 seeder（`DatabaseSeeder`。以降の Milestone で求人・応募・メッセージを足していく） |
 | M3 | 12/14〜12/25 | 企業の求人管理と企業情報の編集（API・画面） |
 | — | 12/28〜1/04 | 年末年始 |
@@ -283,3 +283,15 @@ MVP 後の優先度は、お気に入り → 担当者の招待画面 → 選考
 - SPA: 多言語化しないため vue-i18n は入れず、文言を直接日本語で書く（`frontend/index.html` は既に `<html lang="ja">`）。
 - テスト: 英語の文言で要素を探している component test・E2E（`getByRole('button', { name: 'Log in' })` 等）と、英語の message を検査している Laravel の feature test を書き換える。
 - 日本語フォントは web フォントを使わず OS 標準のものにする（「12. デザイン」）。`font-sans` の fallback に日本語フォントを明示するのはここで行う。
+
+完了（2026-11-12）:
+
+- `lang/ja` に validation・auth・passwords・pagination を置き、通知メール（メール認証・パスワード再設定）と mail の layout の文言は `lang/ja.json` で訳した。`lang/en` は置かない（英語は使わないため。Laravel 同梱の英語は key が無いときの表示にだけ残る）。
+- locale は `config/app.php` の既定値も `ja`・`ja_JP` にし、`.env.example` と CI の Laravel テストの env も揃えた（`laravel.e2e` は `.env` を読む）。
+- validation の属性名は `lang/ja/validation.php` の `attributes` に field 名ごとに書く（field を足したら一緒に足す）。
+- `passwords.user`（email の user が無い）は `passwords.token` と同じ文にした。reset-password はどちらも `errors.token` に出すため、英語のままだと「user が見つからない」と表示され、email の登録有無が分かっていた。
+- SPA の文言は画面・route の title・部品の slot に直接日本語で書いた。Playwright の `getByLabel` は部分一致のため、「パスワード」と「新しいパスワード（確認）」のように一方が他方を含む label は `exact: true` で探す。
+- `font-sans` の fallback に `Hiragino Sans`・`Hiragino Kaku Gothic ProN`・`Noto Sans JP`・`Meiryo` を足した（英数字は Figtree のまま）。
+- 訳が読まれていることは `tests/Feature/LocalizationTest.php`（validation・login・reset・メール 2 種）で確かめる。
+- Laravel 同梱の英語（`auth`・`pagination`・`passwords`・`validation`）にある key が `lang/ja` にもあることを `tests/Unit/TranslationKeysTest.php` で確かめる。Laravel の更新で rule が増えると、Dependabot の PR の CI で落ちる。
+- 日本語は単語の途中でも折り返すため、320px 幅で「パスワードを再／設定」のようにボタンの文字が 2 行になっていた。ボタンの部品（`PrimaryButton`・`SecondaryButton`・`DangerButton`）に `whitespace-nowrap` を付け、ボタンを並べる行は `flex-wrap` で行ごと折り返すようにした。ボタンの `text-xs uppercase tracking-widest`（Breeze 由来の英語向けの指定）は、デザイン素材の選定時に見直す。

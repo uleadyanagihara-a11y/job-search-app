@@ -7,13 +7,13 @@ test('未ログインで / を開くと dashboard を経由して login へ送�
     await page.goto('/');
 
     await expect(page).toHaveURL('/login?redirect=/dashboard');
-    await expect(page).toHaveTitle('Log in - Job Search App');
+    await expect(page).toHaveTitle('ログイン - Job Search App');
 });
 
 test('存在しない path の direct access は SPA の 404 を表示する', async ({ page }) => {
     await page.goto('/no/such/page');
 
-    await expect(page).toHaveTitle('Not Found - Job Search App');
+    await expect(page).toHaveTitle('ページが見つかりません - Job Search App');
     await expect(page.getByRole('heading', { name: '404' })).toBeVisible();
 });
 

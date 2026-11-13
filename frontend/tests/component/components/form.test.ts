@@ -66,12 +66,12 @@ describe('Checkbox', () => {
 
 describe('InputLabel', () => {
     it('value があれば value、無ければ slot を表示する', () => {
-        expect(mount(InputLabel, { props: { value: 'Email' } }).text()).toBe('Email');
-        expect(mount(InputLabel, { slots: { default: 'Password' } }).text()).toBe('Password');
+        expect(mount(InputLabel, { props: { value: 'メールアドレス' } }).text()).toBe('メールアドレス');
+        expect(mount(InputLabel, { slots: { default: 'パスワード' } }).text()).toBe('パスワード');
     });
 
     it('for は label に付く', () => {
-        const wrapper = mount(InputLabel, { props: { value: 'Email' }, attrs: { for: 'email' } });
+        const wrapper = mount(InputLabel, { props: { value: 'メールアドレス' }, attrs: { for: 'email' } });
 
         expect(wrapper.get('label').attributes('for')).toBe('email');
     });
@@ -83,10 +83,10 @@ describe('InputError', () => {
 
         expect(wrapper.isVisible()).toBe(false);
 
-        await wrapper.setProps({ message: 'The email field is required.' });
+        await wrapper.setProps({ message: 'メールアドレスを入力してください。' });
 
         expect(wrapper.isVisible()).toBe(true);
-        expect(wrapper.text()).toBe('The email field is required.');
+        expect(wrapper.text()).toBe('メールアドレスを入力してください。');
     });
 });
 
@@ -101,11 +101,11 @@ describe('buttons', () => {
         const wrapper = mount(PrimaryButton, {
             props: { type: 'button' },
             attrs: { disabled: true },
-            slots: { default: 'Log in' },
+            slots: { default: 'ログイン' },
         });
 
         expect(wrapper.get('button').attributes('type')).toBe('button');
         expect(wrapper.get('button').element.disabled).toBe(true);
-        expect(wrapper.text()).toBe('Log in');
+        expect(wrapper.text()).toBe('ログイン');
     });
 });

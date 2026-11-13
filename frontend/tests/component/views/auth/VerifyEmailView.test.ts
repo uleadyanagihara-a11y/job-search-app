@@ -104,10 +104,10 @@ describe('VerifyEmailView', () => {
 
         expect(wrapper.get('[role="alert"]').text()).toBe('この確認リンクは、ログイン中のアカウントのものではありません。');
         expect(wrapper.find('form').exists()).toBe(false);
-        expect(wrapper.get('a[href="/dashboard"]').text()).toBe('Go to Dashboard');
+        expect(wrapper.get('a[href="/dashboard"]').text()).toBe('ダッシュボードへ');
     });
 
-    it('Log Out は API で logout して login へ進む', async () => {
+    it('ログアウトは API で logout して login へ進む', async () => {
         vi.mocked(authApi.logout).mockResolvedValue();
         const { router, wrapper } = await mountAsUnverified();
 

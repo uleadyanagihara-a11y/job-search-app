@@ -39,7 +39,7 @@ onMounted(load);
     <AuthenticatedLayout>
         <template #header>
             <h1 class="text-xl font-semibold leading-tight text-fg">
-                Profile
+                プロフィール
             </h1>
         </template>
 
