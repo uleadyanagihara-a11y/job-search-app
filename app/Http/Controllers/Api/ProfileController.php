@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProfileUpdateRequest;
 use App\Http\Resources\UserResource;
+use App\Notifications\EmailChangedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Notification;
 
 class ProfileController extends Controller
 {
@@ -24,18 +26,26 @@ class ProfileController extends Controller
     /**
      * PATCH /api/profile (docs/inertia-removal-migration.md §5.2).
      * SPA が auth store を同じ user で更新できるよう、更新済み resource を返す。
+     *
+     * email を変えたら古いアドレスに通知する（docs/domain-api-contract.md M2.2）。
      */
     public function update(ProfileUpdateRequest $request): UserResource
     {
         $user = $request->user();
 
-        $user->fill($request->validated());
+        $user->fill($request->profileAttributes());
 
-        if ($user->isDirty('email')) {
+        $previousEmail = $user->isDirty('email') ? $user->getOriginal('email') : null;
+
+        if ($previousEmail !== null) {
             $user->email_verified_at = null;
         }
 
         $user->save();
+
+        if ($previousEmail !== null) {
+            Notification::route('mail', $previousEmail)->notify(new EmailChangedNotification);
+        }
 
         return new UserResource($user);
     }

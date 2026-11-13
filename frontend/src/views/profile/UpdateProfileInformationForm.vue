@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, useTemplateRef } from 'vue';
 import * as authApi from '@/api/auth';
 import * as profileApi from '@/api/profile';
 import InputError from '@/components/InputError.vue';
@@ -15,18 +15,34 @@ const props = defineProps<{ user: User }>();
 
 const auth = useAuthStore();
 
-const { data, errors, error, processing, recentlySuccessful, submit } = useApiForm({
+const { data, errors, error, processing, recentlySuccessful, submit, reset } = useApiForm({
     name: props.user.name,
     email: props.user.email,
+    current_password: '',
 });
 
+// email を変えるときだけ現在の password で本人確認する（docs/domain-api-contract.md M2.2）。
+const changingEmail = computed(() => data.email !== props.user.email);
+const currentPasswordInput = useTemplateRef<InstanceType<typeof TextInput>>('currentPasswordInput');
+
 async function onSubmit(): Promise<void> {
-    await submit(profileApi.updateProfile, {
-        // layout の user 名や未認証の表示が古いまま残らないよう、更新済み user で auth store を更新する（§9）。
-        onSuccess: (updated) => {
-            auth.setUser(updated);
+    const saved = await submit(
+        ({ current_password, ...rest }) =>
+            profileApi.updateProfile(changingEmail.value ? { ...rest, current_password } : rest),
+        {
+            // layout の user 名や未認証の表示が古いまま残らないよう、更新済み user で auth store を更新する（§9）。
+            onSuccess: (updated) => {
+                auth.setUser(updated);
+            },
         },
-    });
+    );
+
+    // password は成否にかかわらず残さない。誤りなら入れ直してもらう。
+    reset('current_password');
+
+    if (!saved && errors.value.current_password) {
+        currentPasswordInput.value?.focus();
+    }
 }
 
 // email を変えると server が email_verified_at を null に戻す。
@@ -129,6 +145,40 @@ const resending = resendForm.processing;
                     id="email-error"
                     class="mt-2"
                     :message="errors.email"
+                />
+            </div>
+
+            <!-- required 属性は付けない。email の誤りと一緒に server の 422 で日本語の message を出すため -->
+            <div v-if="changingEmail">
+                <InputLabel
+                    for="profile_current_password"
+                    value="現在のパスワード"
+                />
+
+                <TextInput
+                    id="profile_current_password"
+                    ref="currentPasswordInput"
+                    v-model="data.current_password"
+                    type="password"
+                    class="mt-1 block w-full"
+                    autocomplete="current-password"
+                    :aria-invalid="errors.current_password ? 'true' : undefined"
+                    :aria-describedby="
+                        errors.current_password ? 'profile_current_password-error' : 'profile_current_password-hint'
+                    "
+                />
+
+                <p
+                    id="profile_current_password-hint"
+                    class="mt-1 text-sm text-fg-muted"
+                >
+                    メールアドレスを変更するには、現在のパスワードを入力してください。変更すると、これまでのアドレスにお知らせを送ります。
+                </p>
+
+                <InputError
+                    id="profile_current_password-error"
+                    class="mt-2"
+                    :message="errors.current_password"
                 />
             </div>
 

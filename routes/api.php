@@ -39,7 +39,10 @@ Route::post('/auth/confirm-password', [ConfirmablePasswordController::class, 'st
 
 Route::get('/profile', [ProfileController::class, 'show'])->middleware('auth:sanctum');
 
-Route::patch('/profile', [ProfileController::class, 'update'])->middleware('auth:sanctum');
+// email を変えるときに現在の password を照合するため、confirm-password と limiter を共有する
+// （docs/domain-api-contract.md M2.2）。
+Route::patch('/profile', [ProfileController::class, 'update'])
+    ->middleware(['auth:sanctum', 'throttle:auth.confirm-password']);
 
 // password 更新と account 削除は body の現在 password で本人確認するため
 // api.password.confirm を重ねない（docs/inertia-removal-migration.md §5.5.2）。

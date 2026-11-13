@@ -135,6 +135,7 @@ class EmailVerificationTest extends TestCase
         $this->actingAs($user)->fromFrontend()->patchJson('/api/profile', [
             'name' => $user->name,
             'email' => 'changed@example.com',
+            'current_password' => 'password',
         ])->assertOk();
 
         // auth:sanctum が default guard を sanctum に切り替えたまま残る（テストは同じ app を

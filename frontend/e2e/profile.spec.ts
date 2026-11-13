@@ -41,9 +41,18 @@ test('認証済みの user が profile を更新し、password を変え、accou
     const newEmail = uniqueEmail('profile-new');
     await info.getByLabel('名前', { exact: true }).fill('Renamed User');
     await info.getByLabel('メールアドレス', { exact: true }).fill(newEmail);
+    // email を変えるときだけ現在の password を求める（docs/domain-api-contract.md M2.2）
+    await expect(info.getByLabel('現在のパスワード')).toBeVisible();
+    await info.getByLabel('現在のパスワード').fill(PASSWORD);
     await info.getByRole('button', { name: '保存' }).click();
     await expect(info.getByRole('status')).toHaveText('保存しました。');
     await expect(page.getByRole('button', { name: 'Renamed User' })).toBeVisible();
+
+    // 古いアドレスには変更の通知が届き、新しいアドレスは載らない
+    const notice = await latestMailText(request, email);
+    expect(notice).toContain('アカウントのメールアドレスが変更されました。');
+    expect(notice).not.toContain(newEmail);
+    await expect(info.getByLabel('現在のパスワード')).toHaveCount(0);
 
     // email を変えると未認証に戻り、確認メールを新しい宛先へ再送できる
     await expect(info.getByText('メールアドレスが確認されていません。')).toBeVisible();

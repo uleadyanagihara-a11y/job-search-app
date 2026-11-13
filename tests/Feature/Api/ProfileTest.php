@@ -3,7 +3,11 @@
 namespace Tests\Feature\Api;
 
 use App\Models\User;
+use App\Notifications\EmailChangedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Support\Facades\Notification;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class ProfileTest extends TestCase
@@ -34,6 +38,7 @@ class ProfileTest extends TestCase
         $response = $this->actingAs($user)->fromFrontend()->patchJson('/api/profile', [
             'name' => 'Test User',
             'email' => 'test@example.com',
+            'current_password' => 'password',
         ]);
 
         $response->assertOk();
@@ -141,5 +146,80 @@ class ProfileTest extends TestCase
         $this->fromFrontend()->deleteJson('/api/profile', ['password' => 'password'])
             ->assertStatus(401)
             ->assertJson(['code' => 'unauthenticated']);
+    }
+
+    // --- M2（docs/domain-api-contract.md M2.2・M2.7）---
+
+    /**
+     * @return array<string, array{array<string, string>}>
+     */
+    public static function invalidCurrentPasswords(): array
+    {
+        return [
+            'missing' => [[]],
+            'wrong' => [['current_password' => 'wrong-password']],
+        ];
+    }
+
+    /**
+     * @param  array<string, string>  $extra
+     */
+    #[DataProvider('invalidCurrentPasswords')]
+    public function test_changing_email_requires_the_current_password(array $extra): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+        $original = $user->only(['name', 'email', 'email_verified_at']);
+
+        $this->actingAs($user)->fromFrontend()->patchJson('/api/profile', [
+            'name' => 'Changed Name',
+            'email' => 'changed@example.com',
+            ...$extra,
+        ])
+            ->assertStatus(422)
+            ->assertJson(['code' => 'validation_failed'])
+            ->assertOnlyJsonValidationErrors(['current_password']);
+
+        $this->assertEquals($original, $user->refresh()->only(['name', 'email', 'email_verified_at']));
+        Notification::assertNothingSent();
+    }
+
+    public function test_changing_email_notifies_the_previous_address_without_the_new_one(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create(['email' => 'old@example.com']);
+
+        $this->actingAs($user)->fromFrontend()->patchJson('/api/profile', [
+            'name' => $user->name,
+            'email' => 'new@example.com',
+            'current_password' => 'password',
+        ])->assertOk();
+
+        Notification::assertSentOnDemand(
+            EmailChangedNotification::class,
+            function (EmailChangedNotification $notification, array $channels, AnonymousNotifiable $notifiable) {
+                $mail = $notification->toMail($notifiable);
+                $text = implode("\n", [$mail->subject, ...$mail->introLines, ...$mail->outroLines]);
+
+                return $notifiable->routes['mail'] === 'old@example.com' && ! str_contains($text, 'new@example.com');
+            },
+        );
+        Notification::assertSentOnDemandTimes(EmailChangedNotification::class, 1);
+    }
+
+    public function test_current_password_is_not_needed_when_email_is_unchanged(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+
+        // 変えないときは誤った current_password が送られても照合しない。
+        $this->actingAs($user)->fromFrontend()->patchJson('/api/profile', [
+            'name' => 'Renamed',
+            'email' => $user->email,
+            'current_password' => 'wrong-password',
+        ])->assertOk();
+
+        $this->assertSame('Renamed', $user->refresh()->name);
+        Notification::assertNothingSent();
     }
 }
