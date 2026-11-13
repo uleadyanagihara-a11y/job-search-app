@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Api\Auth\CompanyInvitationController;
 use App\Http\Controllers\Api\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Api\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Api\Auth\NewPasswordController;
@@ -24,6 +25,14 @@ Route::post('/auth/login', [AuthenticatedSessionController::class, 'store'])
 
 Route::post('/auth/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware(['auth:sanctum', 'api.session']);
+
+// 企業担当者の招待（docs/domain-api-contract.md M2.3）。token は path に入れず body で受け取る。
+// throttle は lookup と accept の合計で数える。
+Route::post('/company-invitations/lookup', [CompanyInvitationController::class, 'lookup'])
+    ->middleware(['throttle:auth.invitation', 'api.guest']);
+
+Route::post('/company-invitations/accept', [CompanyInvitationController::class, 'accept'])
+    ->middleware(['throttle:auth.invitation', 'api.guest', 'api.session']);
 
 Route::post('/auth/forgot-password', [PasswordResetLinkController::class, 'store'])
     ->middleware(['api.guest', 'throttle:auth.forgot-password']);

@@ -39,6 +39,8 @@ class ApiEndpointContractTest extends TestCase
         'PATCH /api/profile' => ['access' => 'auth', 'limiter' => 'auth.confirm-password', 'required' => ['name', 'email']],
         'DELETE /api/profile' => ['access' => 'auth', 'limiter' => 'auth.confirm-password', 'required' => ['password']],
         'PUT /api/profile/password' => ['access' => 'auth', 'limiter' => 'auth.confirm-password', 'required' => ['current_password', 'password']],
+        'POST /api/company-invitations/lookup' => ['access' => 'guest', 'limiter' => 'auth.invitation', 'required' => ['token']],
+        'POST /api/company-invitations/accept' => ['access' => 'guest', 'limiter' => 'auth.invitation', 'required' => ['token', 'name', 'password']],
     ];
 
     /**

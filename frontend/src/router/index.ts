@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { authGuard } from '@/router/guards';
 import ConfirmPasswordView from '@/views/auth/ConfirmPasswordView.vue';
 import ForgotPasswordView from '@/views/auth/ForgotPasswordView.vue';
+import InvitationAcceptView from '@/views/auth/InvitationAcceptView.vue';
 import LoginView from '@/views/auth/LoginView.vue';
 import RegisterView from '@/views/auth/RegisterView.vue';
 import ResetPasswordView from '@/views/auth/ResetPasswordView.vue';
@@ -26,7 +27,7 @@ declare module 'vue-router' {
 const APP_NAME = 'Job Search App';
 
 // route 名は旧 Laravel の route 名に揃える。
-// アプリの情報はログイン後にだけ見せる。公開してよいのは認証画面と 404 だけで、
+// アプリの情報はログイン後にだけ見せる。公開してよいのは認証画面（招待の受諾を含む）と 404 だけで、
 // それ以外は access を省略して（= auth）guard に login へ送らせる。
 export const routes: RouteRecordRaw[] = [
     // 公開の Welcome 画面は持たない。未ログインなら dashboard の guard で login へ送られる。
@@ -44,6 +45,13 @@ export const routes: RouteRecordRaw[] = [
         name: 'password.reset',
         component: ResetPasswordView,
         meta: { title: 'パスワードの再設定', access: 'guest' },
+    },
+    {
+        // 招待メールの URL（docs/domain-api-contract.md M2.6）。token は画面から body で API へ送る。
+        path: '/invitations/:token',
+        name: 'invitation.accept',
+        component: InvitationAcceptView,
+        meta: { title: '招待の受諾', access: 'guest' },
     },
     {
         path: '/verify-email',

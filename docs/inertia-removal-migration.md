@@ -814,7 +814,7 @@ frontend script は `lint` = `eslint . --max-warnings=0`, `typecheck` = `vue-tsc
 
 アプリの情報はログインした user にだけ見せると決定した。未ログインで保護された画面を開いた場合は login（`?redirect=` に元の path）へ送る。
 
-- 公開する画面は guest 用の認証画面（login、register、forgot-password、reset-password）と not-found だけにする。旧 `/` の Welcome は移植せず、SPA の `/`（route 名 `home`）は `/dashboard` への redirect にする。未ログインなら dashboard の guard で login へ送られる。
+- 公開する画面は guest 用の認証画面（login、register、forgot-password、reset-password、M2 で足した招待の受諾 `/invitations/:token`）と not-found だけにする。旧 `/` の Welcome は移植せず、SPA の `/`（route 名 `home`）は `/dashboard` への redirect にする。未ログインなら dashboard の guard で login へ送られる。
 - router は default deny にする。`meta.access` を省略した route は `auth`（ログイン必須）として扱い、公開する route だけ `public`/`guest` を明示する。判定は `frontend/src/router/guards.ts` の `routeAccess()` に集約し、guard と 401 handler（`frontend/src/main.ts`）の両方が使う。
 - logout と account 削除の後は、auth store を破棄して `/` ではなく login へ送る（`/` は dashboard へ redirect し、さらに login へ送られて不要な `?redirect=/dashboard` が付くため）。
 - router guard は表示の振り分けだけを担う。データの保護は API の `auth:sanctum` が担うため、求人・応募などの業務 API も公開を明示的に決めたもの以外は `auth:sanctum` を付ける。

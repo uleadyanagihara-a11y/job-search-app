@@ -14,6 +14,13 @@ export interface User {
     company_id: number | null;
 }
 
+/** POST /api/company-invitations/lookup の data。 */
+export interface InvitationSummary {
+    company_name: string;
+    email: string;
+    expires_at: string;
+}
+
 export type ValidationErrors = Record<string, string[]>;
 
 export interface ApiErrorBody {
@@ -50,6 +57,16 @@ export function isUser(value: unknown): value is User {
 
 function isNullableString(value: unknown): value is string | null {
     return value === null || typeof value === 'string';
+}
+
+export function isInvitationSummaryResponse(value: unknown): value is { data: InvitationSummary } {
+    return (
+        isRecord(value) &&
+        isRecord(value.data) &&
+        typeof value.data.company_name === 'string' &&
+        typeof value.data.email === 'string' &&
+        typeof value.data.expires_at === 'string'
+    );
 }
 
 function isValidationErrors(value: unknown): value is ValidationErrors {

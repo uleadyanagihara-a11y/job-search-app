@@ -76,7 +76,8 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('auth.login', fn (Request $request) => Limit::perMinute(20)->by($request->ip()));
 
         // guest 専用 endpoint は未ログインなので IP 単位。
-        foreach (['auth.register', 'auth.forgot-password', 'auth.reset-password'] as $name) {
+        // auth.invitation は招待の lookup と accept の合計（docs/domain-api-contract.md M2.3）。
+        foreach (['auth.register', 'auth.forgot-password', 'auth.reset-password', 'auth.invitation'] as $name) {
             RateLimiter::for($name, fn (Request $request) => Limit::perMinute(6)->by($request->ip()));
         }
 

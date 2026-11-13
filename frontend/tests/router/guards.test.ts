@@ -123,6 +123,25 @@ describe('authGuard', () => {
         });
     });
 
+    describe('招待の受諾（guest）', () => {
+        it('未ログインなら token の画面を表示する', async () => {
+            const router = await createTestRouter(null);
+
+            await router.push('/invitations/abc123');
+
+            expect(router.currentRoute.value.name).toBe('invitation.accept');
+            expect(router.currentRoute.value.params.token).toBe('abc123');
+        });
+
+        it('ログイン済みなら dashboard へ送る', async () => {
+            const router = await createTestRouter(verifiedUser);
+
+            await router.push('/invitations/abc123');
+
+            expect(router.currentRoute.value.name).toBe('dashboard');
+        });
+    });
+
     describe('認証状態を取得できない', () => {
         it('public の route だけ表示し、それ以外は遷移を止める', async () => {
             const router = await createTestRouter(new Error('network'));
