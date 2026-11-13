@@ -1,11 +1,17 @@
 // API 契約は docs/inertia-removal-migration.md §5.1–5.2 と docs/phase0-api-contract.md §0.3。
 // response は unknown から受け、ここの guard で形を確かめてから型を付ける（§5.7）。
 
+/** 1 アカウント 1 ロール（docs/domain-design.md 1 章）。 */
+export type Role = 'seeker' | 'company';
+
 export interface User {
     id: number;
     name: string;
     email: string;
     email_verified_at: string | null;
+    role: Role;
+    /** 企業担当者の所属企業。求職者は null（docs/domain-api-contract.md M2.2）。 */
+    company_id: number | null;
 }
 
 export type ValidationErrors = Record<string, string[]>;
@@ -36,8 +42,14 @@ export function isUser(value: unknown): value is User {
         typeof value.id === 'number' &&
         typeof value.name === 'string' &&
         typeof value.email === 'string' &&
-        (value.email_verified_at === null || typeof value.email_verified_at === 'string')
+        isNullableString(value.email_verified_at) &&
+        (value.role === 'seeker' || value.role === 'company') &&
+        (value.company_id === null || typeof value.company_id === 'number')
     );
+}
+
+function isNullableString(value: unknown): value is string | null {
+    return value === null || typeof value === 'string';
 }
 
 function isValidationErrors(value: unknown): value is ValidationErrors {

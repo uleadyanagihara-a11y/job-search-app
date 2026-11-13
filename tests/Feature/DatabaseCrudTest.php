@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -13,11 +14,14 @@ class DatabaseCrudTest extends TestCase
     public function test_laravel_can_insert_select_update_and_delete_verification_data(): void
     {
         // INSERT
-        $user = User::query()->create([
+        // role は fillable ではない（docs/domain-design.md 1 章）ため forceFill で入れる。
+        $user = (new User)->forceFill([
             'name' => 'CRUD Verification Before Update',
             'email' => 'crud-verification@example.test',
             'password' => 'verification-password',
+            'role' => Role::Seeker,
         ]);
+        $user->save();
 
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
