@@ -22,6 +22,7 @@ Laravel（API）とVue 3 + TypeScriptのSPA（`frontend/`）で構成した求�
 | ファイル | 内容 |
 | --- | --- |
 | [`docs/domain-design.md`](docs/domain-design.md) | 求人・応募ドメインのMVP設計とスケジュール（Milestone） |
+| [`docs/domain-api-contract.md`](docs/domain-api-contract.md) | 業務 API の契約（Milestone ごと。M2 は確定） |
 | [`docs/inertia-removal-migration.md`](docs/inertia-removal-migration.md) | Inertia から SPA + API への移行の経緯、API 契約、テスト方針 |
 | [`docs/phase0-api-contract.md`](docs/phase0-api-contract.md) | 移行の Phase 0 で確定した API 契約（path・status・error schema・認証方式）の記録 |
 | [`docs/accepted-vulnerabilities.md`](docs/accepted-vulnerabilities.md) | 許容している npm audit の advisory と再評価の手順、CI の実行制限 |
