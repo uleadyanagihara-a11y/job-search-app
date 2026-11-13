@@ -154,6 +154,27 @@ docker compose restart frontend
 > [!CAUTION]
 > `./vendor/bin/sail down -v`はMySQL、Redis、Mailpitのローカルデータも削除します。保存済みデータが不要だと確認できた場合にだけ実行してください。
 
+### 開発用のデータ
+
+`DatabaseSeeder`が求職者（`seeker@example.com`）と企業担当者（`company@example.com`、企業「サンプル株式会社」）を作ります。password はどちらも`password`です。開発用 DB を作り直すため、既存のデータが不要なときだけ実行します。
+
+```bash
+./vendor/bin/sail artisan migrate:fresh --seed
+```
+
+固定の password の user を作る seeder（`DatabaseSeeder`・`E2eSeeder`）は、`local`・`testing`以外の環境では例外で止まります。
+
+### 企業アカウントの作成・停止（運営）
+
+企業担当者は運営の artisan command で招待し、担当者が招待メール（開発では Mailpit の http://localhost:8026 ）の URL から名前と password を設定します。企業が自分で登録する画面はありません（[`docs/domain-design.md`](docs/domain-design.md) 2 章）。`{company}`は企業の id です。
+
+```bash
+./vendor/bin/sail artisan company:create "株式会社サンプル" owner@example.com   # 企業と最初の担当者の招待（有効期限 7 日）
+./vendor/bin/sail artisan company:invite {company} member@example.com         # 招待の送り直し（古い招待は無効になる）
+./vendor/bin/sail artisan company:suspend {company}                            # 停止（担当者の session と「ログイン状態を保持する」を無効にする）
+./vendor/bin/sail artisan company:resume {company}                             # 再開
+```
+
 ## Compose構成
 
 `compose.yaml`は次の方針で構成しています。

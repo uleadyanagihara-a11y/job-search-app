@@ -15,7 +15,7 @@ async function mountAt(path: string) {
         ],
     });
     await router.push(path);
-    useAuthStore().setUser({ id: 1, name: 'Test', email: 'test@example.com', email_verified_at: '2026-10-01T00:00:00+09:00' });
+    useAuthStore().setUser({ id: 1, name: 'Test', email: 'test@example.com', email_verified_at: '2026-10-01T00:00:00+09:00', role: 'seeker', company_id: null });
 
     return mount(DashboardView, { global: { plugins: [router] } });
 }

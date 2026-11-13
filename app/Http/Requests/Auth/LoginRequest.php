@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Exceptions\CompanySuspendedException;
+use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -37,13 +39,35 @@ class LoginRequest extends FormRequest
     /**
      * Attempt to authenticate the request's credentials.
      *
+     * 停止中の企業の担当者は password が正しいときだけ 403 company_suspended にする
+     * （docs/domain-api-contract.md M2.2）。password が誤りなら停止中でも 422 にし、停止中かどうかを
+     * 第三者に知らせない。停止で拒否した request は失敗回数に数えない。
+     *
      * @throws ValidationException
+     * @throws CompanySuspendedException
      */
     public function authenticate(): void
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        // attemptWhen の callback は password が一致した user にだけ呼ばれる。
+        $suspended = false;
+
+        $authenticated = Auth::attemptWhen(
+            $this->only('email', 'password'),
+            function (User $user) use (&$suspended): bool {
+                $suspended = $user->belongsToSuspendedCompany();
+
+                return ! $suspended;
+            },
+            $this->boolean('remember'),
+        );
+
+        if ($suspended) {
+            throw new CompanySuspendedException;
+        }
+
+        if (! $authenticated) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([

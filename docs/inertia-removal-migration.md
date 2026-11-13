@@ -414,6 +414,7 @@ validation 以外の error は次の形式とする。production response に例
 | `401` | `unauthenticated` | session なし、期限切れ |
 | `403` | `forbidden` | 認可不足（存在が公開されている resource への操作権限なし。§5.5.5） |
 | `403` | `email_unverified` | email verification が必要 |
+| `403` | `company_suspended` | 停止中の企業の担当者が正しい password で login した（`docs/domain-api-contract.md` M2.0。password が誤りなら通常の `422`） |
 | `423` | `password_confirmation_required` | password 再確認が必要。Laravel標準`RequirePassword`に合わせる |
 | `404` | `not_found` | resource なし。他人の非公開 resource も存在しない場合と同じ応答にする（§5.5.5） |
 | `409` | `conflict` | 状態競合、重複操作（応募締切、重複応募、許可されない状態遷移など。§5.5.5） |
