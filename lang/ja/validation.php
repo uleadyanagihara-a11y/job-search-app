@@ -175,6 +175,9 @@ return [
         'password_confirmation' => 'パスワード（確認）',
         'current_password' => '現在のパスワード',
         'token' => '再設定用のトークン',
+        'desired_prefecture' => '希望勤務地',
+        'desired_job_type' => '希望職種',
+        'self_pr' => '自己 PR',
     ],
 
 ];

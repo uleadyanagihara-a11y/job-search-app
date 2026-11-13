@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Api\Auth\RegisteredUserController;
 use App\Http\Controllers\Api\PasswordController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\SeekerProfileController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -62,3 +63,11 @@ Route::delete('/profile', [ProfileController::class, 'destroy'])
 
 Route::put('/profile/password', [PasswordController::class, 'update'])
     ->middleware(['auth:sanctum', 'throttle:auth.confirm-password']);
+
+// --- 業務 API（docs/domain-api-contract.md）---
+// すべて auth:sanctum と api.verified を付ける。api.verified は bootstrap/app.php の priority で
+// SubstituteBindings より前に動く（§5.5.5「middleware の実行順」）。
+Route::middleware(['auth:sanctum', 'api.verified'])->group(function () {
+    Route::get('/seeker-profile', [SeekerProfileController::class, 'show']);
+    Route::put('/seeker-profile', [SeekerProfileController::class, 'update']);
+});

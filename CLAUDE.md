@@ -4,7 +4,8 @@
 
 求職情報サイト（Job Search App）。Laravel 13 の API（Sanctum の Cookie 認証）+ Vue 3 / TypeScript の SPA（`frontend/`）。
 Inertia・Breeze の旧画面は撤去済み（2026-10-17）。Laravel は API とメール認証 callback だけを持ち、画面は持たない。
-認証・profile の API と SPA の画面は移植済み（Phase 4 完了、2026-11-07）。求人・応募まわりのドメインは未実装（MVP の設計とスケジュールは `docs/domain-design.md`）。
+認証・profile の API と SPA の画面は移植済み（Phase 4 完了、2026-11-07）。ロール・企業の招待と停止・求職者プロフィールは M2 で実装済み（2026-11-13）。
+求人・応募まわりは未実装（MVP の設計とスケジュールは `docs/domain-design.md`、Milestone ごとの API 契約は `docs/domain-api-contract.md`）。
 
 ## 開発環境（最重要）
 
@@ -169,7 +170,27 @@ minor・patch はエコシステムごとに 1 PR にまとめ、major は個別
 
 ## コーディング規約
 
-コントローラ/フロントの型・命名パターンは、M2 の最後（`docs/domain-design.md` の 11 章）に追記する。
+### API（Laravel）
+
+- 業務 API は実装の前に `docs/domain-api-contract.md` に契約を書く。endpoint・status・code を変えるときは先に契約を直す。
+- 業務 API の route は `routes/api.php` の `Route::middleware(['auth:sanctum', 'api.verified'])->group()` に入れる。`api.verified` は priority で route binding より前に動く（`SeekerProfileTest` で順序を検査）。
+  新しい API route を足したら `tests/Feature/Api/ApiEndpointContractTest.php` の `ENDPOINTS` にも足す（無いと落ちる）。
+- controller は `app/Http/Controllers/Api/`（認証まわりは `Api/Auth/`）、action 名は `show`/`update`/`store`/`destroy` 等の resource 名。response は `JsonResource`（`app/Http/Resources/`）で返し、日時は `->clone()->utc()->format('Y-m-d\TH:i:s\Z')`、nullable は `null` で返して field の有無を変えない。
+- 認可は Policy（`app/Policies/`）にまとめ、呼び出しは controller の `Gate::authorize()` か route の `can:` の 1 か所。ロールの判定も Policy に書き、middleware にしない。
+  FormRequest を引数で受けると認可より先に validation が動くため、ロール違いを `403` にしたい API では `Gate::authorize()` の後に `app(XxxRequest::class)` で解決する（`SeekerProfileController`）。
+- 業務ルール違反は `abort(409)`（`conflict`）。一意性は DB の unique 制約を正とし、`UniqueConstraintViolationException` を `409` にする。
+- `role` と所属企業は利用者が変えられない。`#[Fillable]` にも FormRequest の rules にも入れず、作る側が `forceFill` で入れる。FormRequest の値は `validated()` から必要な key だけ取り出して `fill` する。
+- PHP の enum は `app/Enums/`（`Role`、`Prefecture`）。都道府県のような固定の一覧は enum にし、SPA は同じ値を `frontend/src/constants/` に持つ（一覧 API は作らない）。
+- user・企業を作る test は factory の state を使う（`User::factory()->companyMember($company)`、`Company::factory()->suspended()`）。
+- 固定の password の user を作る seeder は `RunsOnlyInLocalEnvironments` を使い、`local`・`testing` 以外では例外にする。E2E で使う user は `E2eSeeder` に足し、`frontend/e2e/helpers.ts` の `E2E_USERS` と揃える。
+
+### SPA（`frontend/`）
+
+- API の呼び出しは `src/api/<resource>.ts` に関数で置き、response は `src/types/api.ts` の型 guard（`isXxxResponse`）を `expectShape()` に通してから型を付ける。field を足したら guard も直す。
+- form は `useApiForm`。入力欄は文字列で持ち、API の型（`null`・数値）への変換は送る直前に行う。
+- 取得してから form を初期化する画面は、view が読み込み・失敗・再読み込みを持ち、form は取得した値を props で受ける子 component にする（`ProfileView`・`SeekerProfileView`）。
+- route の `meta.roles` で表示するロールを絞る（合わなければ guard が dashboard へ送る）。nav の項目にも同じ `roles` を書く。データの保護は API の Policy が担う。
+- view・component の名前は 2 語以上（ESLint の `vue/multi-word-component-names`）。画面は `src/views/<画面>/XxxView.vue`、画面専用の部品は同じ directory に置く。
 
 ### 言語（日本語のみ。`docs/domain-design.md` の 14 章）
 

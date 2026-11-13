@@ -11,6 +11,7 @@ async function mountAt(path: string) {
         routes: [
             { path: '/dashboard', name: 'dashboard', component: Empty },
             { path: '/profile', name: 'profile', component: Empty },
+            { path: '/seeker-profile', name: 'seeker-profile', component: Empty },
             { path: '/login', name: 'login', component: Empty },
         ],
     });

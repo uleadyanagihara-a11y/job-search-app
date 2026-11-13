@@ -202,7 +202,7 @@ MVP 後の優先度は、お気に入り → 担当者の招待画面 → 選考
 | M1 | 〜11/07 | 本書（完了） |
 | M1.5 | 11/16〜11/20 | Tailwind CSS 4 への移行と、デザインを差し替えやすくする土台（「12. デザイン」）（完了） |
 | M1.6 | 11/23〜11/27 | 日本語化（「14. 日本語化」）（完了） |
-| M2 | 11/30〜12/11 | 求職者プロフィールの編集画面、複数ロールの E2E helper、M2 の最後に CLAUDE.md のコーディング規約の追記、`users.role`、`companies`・`company_members`・招待（artisan、招待受諾画面）、`seeker_profiles`、最初の Policy、`api.verified` の priority 変更、ロールによる画面の振り分け、`/api/user` への `role` の追加、企業の停止、E2E 用 seeder、開発用 seeder（`DatabaseSeeder`。以降の Milestone で求人・応募・メッセージを足していく） |
+| M2 | 11/30〜12/11 | 求職者プロフィールの編集画面、複数ロールの E2E helper、M2 の最後に CLAUDE.md のコーディング規約の追記、`users.role`、`companies`・`company_members`・招待（artisan、招待受諾画面）、`seeker_profiles`、最初の Policy、`api.verified` の priority 変更、ロールによる画面の振り分け、`/api/user` への `role` の追加、企業の停止、E2E 用 seeder、開発用 seeder（`DatabaseSeeder`。以降の Milestone で求人・応募・メッセージを足していく）（完了） |
 | M3 | 12/14〜12/25 | 企業の求人管理と企業情報の編集（API・画面） |
 | — | 12/28〜1/04 | 年末年始 |
 | M4 | 1/05〜1/15 | 求職者の求人検索・一覧・詳細 |
