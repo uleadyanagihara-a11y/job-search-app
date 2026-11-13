@@ -13,6 +13,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Exceptions\InvalidSignatureException;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Routing\Middleware\ValidateSignature;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -53,6 +54,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(
             before: ValidateSignature::class,
             prepend: ThrottleEmailVerificationCallback::class,
+        );
+
+        // 業務 API は「ログイン確認 → メール確認 → route binding → Policy」の順で評価する（§5.5.5）。
+        // api.verified は priority 一覧に無く binding より後に回るため、binding の直前に入れる。
+        // これが無いと、未確認の user に存在しない ID で 404 を返し、resource の有無を知らせてしまう。
+        $middleware->prependToPriorityList(
+            before: SubstituteBindings::class,
+            prepend: EnsureApiEmailIsVerified::class,
         );
 
         $middleware->alias([

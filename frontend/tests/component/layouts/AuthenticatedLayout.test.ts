@@ -22,6 +22,7 @@ beforeEach(async () => {
             { path: '/login', name: 'login', component: Empty },
             { path: '/dashboard', name: 'dashboard', component: Empty },
             { path: '/profile', name: 'profile', component: Empty },
+            { path: '/seeker-profile', name: 'seeker-profile', component: Empty },
         ],
     });
     await router.push('/dashboard');
@@ -134,5 +135,21 @@ describe('AuthenticatedLayout', () => {
         expect(useAuthStore().user.value).toEqual(user);
         expect(router.currentRoute.value.name).toBe('dashboard');
         expect(logoutButtons(wrapper)[0]!.attributes('disabled')).toBeUndefined();
+    });
+
+    it('求職者プロフィールの link は求職者にだけ desktop と responsive menu の両方に出す', () => {
+        const seekerLinks = mountLayout()
+            .findAll('a')
+            .filter((a) => a.text() === '求職者プロフィール');
+
+        expect(seekerLinks.map((a) => a.attributes('href'))).toEqual(['/seeker-profile', '/seeker-profile']);
+
+        useAuthStore().setUser({ ...user, role: 'company', company_id: 1 });
+
+        expect(
+            mountLayout()
+                .findAll('a')
+                .filter((a) => a.text() === '求職者プロフィール'),
+        ).toHaveLength(0);
     });
 });

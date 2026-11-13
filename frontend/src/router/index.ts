@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 import { authGuard } from '@/router/guards';
+import type { Role } from '@/types/api';
 import ConfirmPasswordView from '@/views/auth/ConfirmPasswordView.vue';
 import ForgotPasswordView from '@/views/auth/ForgotPasswordView.vue';
 import InvitationAcceptView from '@/views/auth/InvitationAcceptView.vue';
@@ -10,6 +11,7 @@ import VerifyEmailView from '@/views/auth/VerifyEmailView.vue';
 import DashboardView from '@/views/DashboardView.vue';
 import NotFoundView from '@/views/NotFoundView.vue';
 import ProfileView from '@/views/profile/ProfileView.vue';
+import SeekerProfileView from '@/views/seeker-profile/SeekerProfileView.vue';
 
 declare module 'vue-router' {
     interface RouteMeta {
@@ -21,6 +23,11 @@ declare module 'vue-router' {
         access?: 'public' | 'guest' | 'auth';
         /** メール認証済みのみ（旧 `verified` middleware） */
         verified?: boolean;
+        /**
+         * 表示するロール。合わない user は dashboard へ送る。省略時は全ロール。
+         * 表示の振り分けだけで、データは API の Policy が守る（docs/domain-api-contract.md M2.6）。
+         */
+        roles?: readonly Role[];
     }
 }
 
@@ -72,6 +79,12 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: 'ダッシュボード', access: 'auth', verified: true },
     },
     { path: '/profile', name: 'profile', component: ProfileView, meta: { title: 'プロフィール', access: 'auth' } },
+    {
+        path: '/seeker-profile',
+        name: 'seeker-profile',
+        component: SeekerProfileView,
+        meta: { title: '求職者プロフィール', access: 'auth', verified: true, roles: ['seeker'] },
+    },
     {
         path: '/:pathMatch(.*)*',
         name: 'not-found',

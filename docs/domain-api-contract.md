@@ -13,7 +13,7 @@
 
 ## M2: ロール・企業の招待・求職者プロフィール
 
-状態: **確定（2026-11-13）**。
+状態: **確定（2026-11-13）、実装済み（2026-11-13）**。実装で決めた細部は M2.9。
 
 ### M2.0 設計書から M2 に持ち越した判断
 
@@ -133,3 +133,15 @@ API ではないが、契約の確認に必要なものだけ書く。
 
 - 企業担当者の dashboard: M2 では求職者と同じ空の dashboard を出す。ロール別の中身は M5.5 で作る（設計書 11 章）。
 - `company:create` は企業名と email だけを受ける。説明・Web サイト・所在地は M3 の企業情報の編集画面で担当者が入れる。
+
+### M2.9 実装で決めた細部
+
+契約に書いていなかったもので、実装時に決めたもの。
+
+- `403 company_suspended` は `App\Exceptions\CompanySuspendedException`（`render()` を持ち、log に残さない `ShouldntReport`）で返す。login の処理（FormRequest）から返すため、§5.5.4 の「middleware から `ApiErrorResponse` を返す」初期方式に当てはまらない。判定は `Auth::attemptWhen()` の callback で行い、password が一致したときだけ停止を見る。
+- `PUT /api/seeker-profile` は FormRequest を引数で受けず、`Gate::authorize()` の後に解決する。引数で受けると validation が認可より先に動き、企業担当者に `403` ではなく `422` を返すため。行を作ったときも `201` ではなく `200`。
+- `PATCH /api/profile` は email が空のときは `current_password` を求めない（`email` の required だけを返す）。email を変えないときに送られた `current_password` は照合しない。SPA の「現在のパスワード」欄は email を変えたときだけ出し、`required` 属性は付けない（server の `422` で日本語の message を出すため）。
+- `DELETE /api/profile` の最後の担当者の判定は、同じ企業の `company_members` の行を lock して数える（2 人が同時に削除して 0 人にならないように）。
+- `company:create`・`company:invite` は email を小文字にそろえる。`company:invite` は停止中の企業には送らずエラーで終了する（受諾できない招待を送らないため）。`company:create` は招待メールを送れなかったら企業も作らない。
+- 開発用の user は `DatabaseSeeder`（`seeker@example.com`・`company@example.com`、password は `password`）、E2E 用は `E2eSeeder`（`laravel.e2e` の起動時。求職者・企業担当者・停止中の企業の担当者と、`e2e-invited@example.com` への招待メール）。E2E の user の email は `frontend/e2e/helpers.ts` の `E2E_USERS` と揃える。
+- SPA の共通部品として `PageHeading`・`ContentCard`・`AlertMessage`・`MutedText`・`SavedStatus`・`SelectInput`・`TextareaInput` を `frontend/src/components/` に足した。

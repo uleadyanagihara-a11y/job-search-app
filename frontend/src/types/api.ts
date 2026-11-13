@@ -14,6 +14,15 @@ export interface User {
     company_id: number | null;
 }
 
+/** docs/domain-api-contract.md M2.3「求職者プロフィール」。行が無ければ全 field が null。 */
+export interface SeekerProfile {
+    /** 都道府県の JIS 番号（1〜47）。`src/constants/prefectures.ts` */
+    desired_prefecture: number | null;
+    desired_job_type: string | null;
+    self_pr: string | null;
+    updated_at: string | null;
+}
+
 /** POST /api/company-invitations/lookup の data。 */
 export interface InvitationSummary {
     company_name: string;
@@ -57,6 +66,20 @@ export function isUser(value: unknown): value is User {
 
 function isNullableString(value: unknown): value is string | null {
     return value === null || typeof value === 'string';
+}
+
+export function isSeekerProfile(value: unknown): value is SeekerProfile {
+    return (
+        isRecord(value) &&
+        (value.desired_prefecture === null || typeof value.desired_prefecture === 'number') &&
+        isNullableString(value.desired_job_type) &&
+        isNullableString(value.self_pr) &&
+        isNullableString(value.updated_at)
+    );
+}
+
+export function isSeekerProfileResponse(value: unknown): value is { data: SeekerProfile } {
+    return isRecord(value) && isSeekerProfile(value.data);
 }
 
 export function isInvitationSummaryResponse(value: unknown): value is { data: InvitationSummary } {

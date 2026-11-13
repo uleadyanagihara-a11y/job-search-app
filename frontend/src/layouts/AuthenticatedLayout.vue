@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ApplicationLogo from '@/components/ApplicationLogo.vue';
 import Dropdown from '@/components/Dropdown.vue';
@@ -7,6 +7,7 @@ import DropdownLink from '@/components/DropdownLink.vue';
 import NavLink from '@/components/NavLink.vue';
 import ResponsiveNavLink from '@/components/ResponsiveNavLink.vue';
 import { useAuthStore } from '@/stores/auth';
+import type { Role } from '@/types/api';
 
 const auth = useAuthStore();
 const route = useRoute();
@@ -14,7 +15,16 @@ const router = useRouter();
 
 // desktop と responsive menu はこの一覧から描画し、片方だけに項目を足すことが無いようにする。
 // navigationItems は上段の navigation、settingsItems は user 名の dropdown（responsive では user 情報の下）に並べる。
-const navigationItems = [{ name: 'dashboard', label: 'ダッシュボード' }] as const;
+// roles のある項目は、そのロールの user にだけ出す（route の meta.roles と揃える。docs/domain-api-contract.md M2.6）。
+const allNavigationItems: readonly { name: string; label: string; roles?: readonly Role[] }[] = [
+    { name: 'dashboard', label: 'ダッシュボード' },
+    { name: 'seeker-profile', label: '求職者プロフィール', roles: ['seeker'] },
+];
+const navigationItems = computed(() => {
+    const role = auth.user.value?.role;
+
+    return allNavigationItems.filter((item) => item.roles === undefined || (role !== undefined && item.roles.includes(role)));
+});
 const settingsItems = [{ name: 'profile', label: 'プロフィール' }] as const;
 
 function isActive(name: string): boolean {

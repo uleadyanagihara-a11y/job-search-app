@@ -1,6 +1,6 @@
 # Job Search App
 
-Laravel（API）とVue 3 + TypeScriptのSPA（`frontend/`）で構成した求人検索アプリケーションです。現在はアカウントまわりの機能（ユーザー登録、ログイン・ログアウト、メール確認、パスワード再設定・再確認、プロフィール編集、パスワード変更、アカウント削除）を、APIとSPAの画面の両方で備えています。求人・応募の機能は未実装で、MVPの設計とスケジュールは[`docs/domain-design.md`](docs/domain-design.md)にあります。
+Laravel（API）とVue 3 + TypeScriptのSPA（`frontend/`）で構成した求人検索アプリケーションです。現在はアカウントまわりの機能（ユーザー登録、ログイン・ログアウト、メール確認、パスワード再設定・再確認、プロフィール編集、パスワード変更、アカウント削除）と、ロール（求職者・企業担当者）、運営による企業の作成・招待・停止、求職者プロフィールを、APIとSPAの画面の両方で備えています（M2）。求人・応募の機能は未実装で、MVPの設計とスケジュールは[`docs/domain-design.md`](docs/domain-design.md)にあります。
 
 ローカル開発環境にはLaravel Sailを使用します。ホスト側にPHP、Composer、Node.js、npmを個別にインストールする必要はありません。Sailの準備完了後は、PHP、Artisan、Composerを必ず`./vendor/bin/sail`経由で、`frontend/`のnpmをComposeの`frontend` service経由で実行してください。
 
@@ -22,7 +22,7 @@ Laravel（API）とVue 3 + TypeScriptのSPA（`frontend/`）で構成した求�
 | ファイル | 内容 |
 | --- | --- |
 | [`docs/domain-design.md`](docs/domain-design.md) | 求人・応募ドメインのMVP設計とスケジュール（Milestone） |
-| [`docs/domain-api-contract.md`](docs/domain-api-contract.md) | 業務 API の契約（Milestone ごと。M2 は確定） |
+| [`docs/domain-api-contract.md`](docs/domain-api-contract.md) | 業務 API の契約（Milestone ごと。M2 は実装済み） |
 | [`docs/inertia-removal-migration.md`](docs/inertia-removal-migration.md) | Inertia から SPA + API への移行の経緯、API 契約、テスト方針 |
 | [`docs/phase0-api-contract.md`](docs/phase0-api-contract.md) | 移行の Phase 0 で確定した API 契約（path・status・error schema・認証方式）の記録 |
 | [`docs/accepted-vulnerabilities.md`](docs/accepted-vulnerabilities.md) | 許容している npm audit の advisory と再評価の手順、CI の実行制限 |

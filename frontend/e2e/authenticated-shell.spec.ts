@@ -23,7 +23,7 @@ test('メール認証後の dashboard から navigation で移動し、desktop�
 
     // desktop: user 名の dropdown から Profile へ移動し、logo で dashboard へ戻る
     await page.getByRole('button', { name: 'E2E User' }).click();
-    await page.getByRole('link', { name: 'プロフィール' }).click();
+    await page.getByRole('link', { name: 'プロフィール', exact: true }).click();
     await expect(page).toHaveURL('/profile');
     await expect(page.getByRole('link', { name: 'ダッシュボード' })).not.toHaveAttribute('aria-current', 'page');
 

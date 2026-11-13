@@ -8,6 +8,7 @@ vi.mock('@/api/auth', () => ({ fetchUser: vi.fn() }));
 
 const verifiedUser: User = { id: 1, name: 'Test', email: 'test@example.com', email_verified_at: '2026-10-01T00:00:00+09:00', role: 'seeker', company_id: null };
 const unverifiedUser: User = { ...verifiedUser, email_verified_at: null };
+const companyUser: User = { ...verifiedUser, role: 'company', company_id: 1 };
 
 async function createTestRouter(user: User | null | Error) {
     const authApi = await import('@/api/auth');
@@ -120,6 +121,49 @@ describe('authGuard', () => {
 
             await router.push('/confirm-password?redirect=/profile');
             expect(router.currentRoute.value.name).toBe('password.confirm');
+        });
+    });
+
+    describe('ロール（meta.roles）', () => {
+        it('求職者は求職者プロフィールを表示する', async () => {
+            const router = await createTestRouter(verifiedUser);
+
+            await router.push('/seeker-profile');
+
+            expect(router.currentRoute.value.name).toBe('seeker-profile');
+        });
+
+        it('企業担当者が求職者プロフィールを開くと dashboard へ送る', async () => {
+            const router = await createTestRouter(companyUser);
+
+            await router.push('/seeker-profile');
+
+            expect(router.currentRoute.value.name).toBe('dashboard');
+        });
+
+        it('メール未認証ならロールより先に verification.notice へ送る', async () => {
+            const router = await createTestRouter({ ...companyUser, email_verified_at: null });
+
+            await router.push('/seeker-profile');
+
+            expect(router.currentRoute.value.name).toBe('verification.notice');
+        });
+
+        it('roles の無い route はどのロールにも表示する', async () => {
+            const router = await createTestRouter(companyUser);
+
+            await router.push('/profile');
+
+            expect(router.currentRoute.value.name).toBe('profile');
+        });
+
+        it('未ログインで求職者プロフィールを開くと login へ送る', async () => {
+            const router = await createTestRouter(null);
+
+            await router.push('/seeker-profile');
+
+            expect(router.currentRoute.value.name).toBe('login');
+            expect(router.currentRoute.value.query.redirect).toBe('/seeker-profile');
         });
     });
 

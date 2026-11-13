@@ -10,7 +10,7 @@ export function routeAccess(route: Pick<RouteLocation, 'meta'>): NonNullable<Rou
 }
 
 /**
- * 旧 Laravel の `guest` / `auth` / `verified` middleware に相当する画面遷移の判定。
+ * 旧 Laravel の `guest` / `auth` / `verified` middleware に相当する画面遷移の判定と、`meta.roles` による振り分け。
  * API 側でも同じ判定をするため、ここは表示の振り分けだけを担う。
  */
 export async function authGuard(to: RouteLocationNormalized): Promise<boolean | RouteLocationRaw> {
@@ -36,6 +36,11 @@ export async function authGuard(to: RouteLocationNormalized): Promise<boolean | 
 
     if (to.meta.verified && !auth.isVerified.value) {
         return { name: 'verification.notice' };
+    }
+
+    // ロールが合わない画面は dashboard へ送る（表示の振り分けだけ。データは API の Policy が守る）。
+    if (user !== null && to.meta.roles !== undefined && !to.meta.roles.includes(user.role)) {
+        return { name: 'dashboard' };
     }
 
     // メール認証 callback の失敗（`?error=`。§5.4）は認証済みでも表示する。

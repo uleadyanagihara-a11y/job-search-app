@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Enums\Role;
 use App\Models\Company;
+use App\Models\SeekerProfile;
 use App\Models\User;
 use App\Notifications\EmailChangedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -272,5 +273,16 @@ class ProfileTest extends TestCase
         $this->assertNull($user->fresh());
         $this->assertDatabaseMissing('company_members', ['user_id' => $user->id]);
         $this->assertDatabaseCount('company_members', 1);
+    }
+
+    public function test_deleting_a_seeker_also_deletes_their_seeker_profile(): void
+    {
+        $user = User::factory()->create();
+        $user->seekerProfile()->create(['self_pr' => 'よろしくお願いします。']);
+
+        $this->actingAs($user)->fromFrontend()->deleteJson('/api/profile', ['password' => 'password'])
+            ->assertNoContent();
+
+        $this->assertSame(0, SeekerProfile::query()->count());
     }
 }

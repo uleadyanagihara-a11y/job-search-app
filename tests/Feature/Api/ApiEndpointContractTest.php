@@ -41,6 +41,9 @@ class ApiEndpointContractTest extends TestCase
         'PUT /api/profile/password' => ['access' => 'auth', 'limiter' => 'auth.confirm-password', 'required' => ['current_password', 'password']],
         'POST /api/company-invitations/lookup' => ['access' => 'guest', 'limiter' => 'auth.invitation', 'required' => ['token']],
         'POST /api/company-invitations/accept' => ['access' => 'guest', 'limiter' => 'auth.invitation', 'required' => ['token', 'name', 'password']],
+        // 項目はすべて任意のため、空 body でも 200（送らなかった field は null）。
+        'GET /api/seeker-profile' => ['access' => 'auth', 'limiter' => null, 'required' => []],
+        'PUT /api/seeker-profile' => ['access' => 'auth', 'limiter' => null, 'required' => []],
     ];
 
     /**
