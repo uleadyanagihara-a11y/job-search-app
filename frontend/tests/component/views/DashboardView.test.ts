@@ -24,8 +24,8 @@ describe('DashboardView', () => {
     it('AuthenticatedLayout の中に見出しと本文を表示する', async () => {
         const wrapper = await mountAt('/dashboard');
 
-        expect(wrapper.get('header h1').text()).toBe('Dashboard');
-        expect(wrapper.get('main').text()).toContain("You're logged in!");
+        expect(wrapper.get('header h1').text()).toBe('ダッシュボード');
+        expect(wrapper.get('main').text()).toContain('ログインしています。');
         expect(wrapper.find('[role="status"]').exists()).toBe(false);
     });
 

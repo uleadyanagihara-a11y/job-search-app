@@ -48,7 +48,7 @@ async function onSubmit(): Promise<void> {
             <div>
                 <InputLabel
                     for="name"
-                    value="Name"
+                    value="名前"
                 />
 
                 <TextInput
@@ -73,7 +73,7 @@ async function onSubmit(): Promise<void> {
             <div class="mt-4">
                 <InputLabel
                     for="email"
-                    value="Email"
+                    value="メールアドレス"
                 />
 
                 <TextInput
@@ -97,7 +97,7 @@ async function onSubmit(): Promise<void> {
             <div class="mt-4">
                 <InputLabel
                     for="password"
-                    value="Password"
+                    value="パスワード"
                 />
 
                 <TextInput
@@ -121,7 +121,7 @@ async function onSubmit(): Promise<void> {
             <div class="mt-4">
                 <InputLabel
                     for="password_confirmation"
-                    value="Confirm Password"
+                    value="パスワード（確認）"
                 />
 
                 <TextInput
@@ -142,19 +142,19 @@ async function onSubmit(): Promise<void> {
                 />
             </div>
 
-            <div class="mt-4 flex items-center justify-end">
+            <div class="mt-4 flex flex-wrap items-center justify-end gap-y-2">
                 <RouterLink
                     :to="{ name: 'login', query: route.query }"
                     class="rounded-md text-sm text-fg-muted underline hover:text-fg-strong focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                 >
-                    Already registered?
+                    登録済みの方はこちら
                 </RouterLink>
 
                 <PrimaryButton
                     class="ms-4"
                     :disabled="processing"
                 >
-                    Register
+                    登録
                 </PrimaryButton>
             </div>
         </form>

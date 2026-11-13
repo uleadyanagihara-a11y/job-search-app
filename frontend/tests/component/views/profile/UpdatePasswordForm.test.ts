@@ -28,7 +28,7 @@ function valueOf(wrapper: Awaited<ReturnType<typeof fillAndSubmit>>, selector: s
 }
 
 describe('UpdatePasswordForm', () => {
-    it('3 つの欄を送り、成功したら全欄を消して Saved. を表示する', async () => {
+    it('3 つの欄を送り、成功したら全欄を消して「保存しました。」を表示する', async () => {
         vi.mocked(profileApi.updatePassword).mockResolvedValue();
 
         const wrapper = await fillAndSubmit();
@@ -39,7 +39,7 @@ describe('UpdatePasswordForm', () => {
             password_confirmation: 'new-secret',
         });
         expect([valueOf(wrapper, CURRENT), valueOf(wrapper, NEW), valueOf(wrapper, CONFIRMATION)]).toEqual(['', '', '']);
-        expect(wrapper.get('[role="status"]').text()).toBe('Saved.');
+        expect(wrapper.get('[role="status"]').text()).toBe('保存しました。');
     });
 
     it('current_password の 422 はその欄だけ消して focus する', async () => {

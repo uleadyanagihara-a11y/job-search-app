@@ -57,7 +57,7 @@ async function onSubmit(): Promise<void> {
             <div>
                 <InputLabel
                     for="email"
-                    value="Email"
+                    value="メールアドレス"
                 />
 
                 <TextInput
@@ -82,7 +82,7 @@ async function onSubmit(): Promise<void> {
             <div class="mt-4">
                 <InputLabel
                     for="password"
-                    value="Password"
+                    value="新しいパスワード"
                 />
 
                 <TextInput
@@ -106,7 +106,7 @@ async function onSubmit(): Promise<void> {
             <div class="mt-4">
                 <InputLabel
                     for="password_confirmation"
-                    value="Confirm Password"
+                    value="新しいパスワード（確認）"
                 />
 
                 <TextInput
@@ -127,19 +127,19 @@ async function onSubmit(): Promise<void> {
                 />
             </div>
 
-            <div class="mt-4 flex items-center justify-end">
+            <div class="mt-4 flex flex-wrap items-center justify-end gap-y-2">
                 <RouterLink
                     :to="{ name: 'password.request' }"
                     class="rounded-md text-sm text-fg-muted underline hover:text-fg-strong focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                 >
-                    Request a new link
+                    リンクを再送する
                 </RouterLink>
 
                 <PrimaryButton
                     class="ms-4"
                     :disabled="processing"
                 >
-                    Reset Password
+                    パスワードを再設定
                 </PrimaryButton>
             </div>
         </form>

@@ -38,7 +38,7 @@ function mountLayout() {
 }
 
 function logoutButtons(wrapper: ReturnType<typeof mountLayout>) {
-    return wrapper.findAll('button').filter((button) => button.text() === 'Log Out');
+    return wrapper.findAll('button').filter((button) => button.text() === 'ログアウト');
 }
 
 describe('AuthenticatedLayout', () => {
@@ -57,10 +57,10 @@ describe('AuthenticatedLayout', () => {
         expect(wrapper.find('header').exists()).toBe(false);
     });
 
-    it('現在の route の Dashboard link に aria-current を付け、Profile への link を持つ', () => {
+    it('現在の route のダッシュボードの link に aria-current を付け、プロフィールへの link を持つ', () => {
         const wrapper = mountLayout();
-        const dashboardLinks = wrapper.findAll('a').filter((a) => a.text() === 'Dashboard');
-        const profileLinks = wrapper.findAll('a').filter((a) => a.text() === 'Profile');
+        const dashboardLinks = wrapper.findAll('a').filter((a) => a.text() === 'ダッシュボード');
+        const profileLinks = wrapper.findAll('a').filter((a) => a.text() === 'プロフィール');
 
         expect(dashboardLinks).toHaveLength(2);
         expect(dashboardLinks.every((a) => a.attributes('aria-current') === 'page')).toBe(true);
@@ -100,7 +100,7 @@ describe('AuthenticatedLayout', () => {
         expect(wrapper.get('#responsive-navigation').isVisible()).toBe(false);
     });
 
-    it.each([0, 1])('Log Out（%i 番目: dropdown / responsive）で logout API を呼び、store を破棄して login へ移動する', async (index) => {
+    it.each([0, 1])('ログアウト（%i 番目: dropdown / responsive）で logout API を呼び、store を破棄して login へ移動する', async (index) => {
         vi.mocked(authApi.logout).mockResolvedValue();
         const wrapper = mountLayout();
 
@@ -112,7 +112,7 @@ describe('AuthenticatedLayout', () => {
         expect(router.currentRoute.value.fullPath).toBe('/login');
     });
 
-    it('logout 中は Log Out を無効にし、二重に送らない', async () => {
+    it('logout 中はログアウトを無効にし、二重に送らない', async () => {
         vi.mocked(authApi.logout).mockReturnValue(new Promise(() => {}));
         const wrapper = mountLayout();
 

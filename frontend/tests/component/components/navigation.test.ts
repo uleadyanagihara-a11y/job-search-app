@@ -27,7 +27,7 @@ describe('NavLink', () => {
     it('to を href にし、active なら aria-current を付ける', () => {
         const active = mount(NavLink, {
             props: { to: { name: 'dashboard' }, active: true },
-            slots: { default: 'Dashboard' },
+            slots: { default: 'ダッシュボード' },
             global: { plugins: [router] },
         });
         const inactive = mount(NavLink, {
@@ -62,7 +62,7 @@ describe.each([
         let clicked = 0;
         const button = mount(component, {
             attrs: { onClick: () => clicked++ },
-            slots: { default: 'Log Out' },
+            slots: { default: 'ログアウト' },
             global: { plugins: [router] },
         });
 

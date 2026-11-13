@@ -10,7 +10,13 @@
 @plugin '@tailwindcss/forms';
 
 @theme {
-    --font-sans: Figtree, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    /*
+     * 英数字は Figtree、日本語は OS 標準のフォント（web フォントは使わない。docs/domain-design.md 12・14 章）。
+     * Figtree に無い文字は 1 文字ずつ後ろのフォントで表示される。system-ui が日本語を持たない環境
+     * （英語版の Windows、macOS の一部）に備えて、macOS・Linux/Android・Windows の日本語フォントを明示する。
+     */
+    --font-sans:
+        Figtree, ui-sans-serif, system-ui, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', Meiryo, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
 /*

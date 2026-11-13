@@ -67,7 +67,7 @@ describe('RegisterView', () => {
     it('login への link を持つ', async () => {
         const { wrapper } = await mountAt(RegisterView, '/register');
 
-        const link = wrapper.findAll('a').find((a) => a.text() === 'Already registered?');
+        const link = wrapper.findAll('a').find((a) => a.text() === '登録済みの方はこちら');
 
         expect(link?.attributes('href')).toBe('/login');
     });
@@ -75,7 +75,7 @@ describe('RegisterView', () => {
     it('login への link は ?redirect= などの query を引き継ぐ', async () => {
         const { wrapper } = await mountAt(RegisterView, '/register?redirect=/profile');
 
-        const link = wrapper.findAll('a').find((a) => a.text() === 'Already registered?');
+        const link = wrapper.findAll('a').find((a) => a.text() === '登録済みの方はこちら');
 
         expect(link?.attributes('href')).toBe('/login?redirect=/profile');
     });

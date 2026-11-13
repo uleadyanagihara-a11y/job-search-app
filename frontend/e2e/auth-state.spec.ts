@@ -16,9 +16,9 @@ test('未認証の user が確認メールを再送し、password を再確認�
     // Cookie + CSRF の register で session が張られ、dashboard は verified 必須なので verify-email へ送られる
     await page.goto('/dashboard');
     await expect(page).toHaveURL('/verify-email');
-    await expect(page).toHaveTitle('Email Verification - Job Search App');
+    await expect(page).toHaveTitle('メールアドレスの確認 - Job Search App');
 
-    await page.getByRole('button', { name: 'Resend Verification Email' }).click();
+    await page.getByRole('button', { name: '確認メールを再送信' }).click();
     await expect(page.getByRole('status')).toHaveText('確認メールを送信しました。');
 
     // callback の失敗（§5.4）は ?error= で受けて表示する
@@ -29,19 +29,19 @@ test('未認証の user が確認メールを再送し、password を再確認�
 
     // password の再確認。誤りは field に、正しければ ?redirect= の画面へ戻る
     await page.goto('/confirm-password?redirect=/profile');
-    await expect(page).toHaveTitle('Confirm Password - Job Search App');
-    await page.getByLabel('Password').fill('wrong-password');
-    await page.getByRole('button', { name: 'Confirm' }).click();
+    await expect(page).toHaveTitle('パスワードの確認 - Job Search App');
+    await page.getByLabel('パスワード').fill('wrong-password');
+    await page.getByRole('button', { name: '確認' }).click();
     await expect(page.locator('#password-error')).not.toBeEmpty();
-    await expect(page.getByLabel('Password')).toHaveValue('');
+    await expect(page.getByLabel('パスワード')).toHaveValue('');
 
-    await page.getByLabel('Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Confirm' }).click();
+    await page.getByLabel('パスワード').fill(PASSWORD);
+    await page.getByRole('button', { name: '確認' }).click();
     await expect(page).toHaveURL('/profile');
 
     // verify-email の Log Out
     await page.goto('/verify-email');
-    await page.getByRole('button', { name: 'Log Out' }).click();
+    await page.getByRole('button', { name: 'ログアウト' }).click();
     await expect(page).toHaveURL('/login');
     expect((await page.request.get('/api/user', { headers: { Accept: 'application/json' } })).status()).toBe(401);
 
@@ -54,9 +54,9 @@ test('未認証の user が確認メールを再送し、password を再確認�
     await expect(page.getByRole('status')).toHaveText('メールアドレスの確認を完了するには、ログインしてください。');
 
     // ログインすると redirect_to（保存した callback）へ進み、認証を完了して dashboard へ
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Log in' }).click();
+    await page.getByLabel('メールアドレス').fill(email);
+    await page.getByLabel('パスワード').fill(PASSWORD);
+    await page.getByRole('button', { name: 'ログイン' }).click();
     await expect(page).toHaveURL('/dashboard?verified=1');
 
     // 認証済みなら verify-email は dashboard へ送られる
@@ -68,5 +68,5 @@ test('未認証の user が確認メールを再送し、password を再確認�
     await page.goto('/verify-email?error=user-mismatch');
     await expect(page).toHaveURL('/verify-email?error=user-mismatch');
     await expect(page.getByRole('alert')).toHaveText('この確認リンクは、ログイン中のアカウントのものではありません。');
-    await expect(page.getByRole('link', { name: 'Go to Dashboard' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'ダッシュボードへ' })).toBeVisible();
 });

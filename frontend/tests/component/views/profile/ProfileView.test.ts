@@ -28,13 +28,13 @@ describe('ProfileView', () => {
         await flushPromises();
 
         expect(useAuthStore().user.value).toEqual(verifiedUser);
-        expect(wrapper.get('h1').text()).toBe('Profile');
+        expect(wrapper.get('h1').text()).toBe('プロフィール');
         expect(wrapper.findAll('h2').map((h) => h.text())).toEqual(
-            expect.arrayContaining(['Profile Information', 'Update Password', 'Delete Account']),
+            expect.arrayContaining(['プロフィール情報', 'パスワードの変更', 'アカウントの削除']),
         );
         expect((wrapper.get('#name').element as HTMLInputElement).value).toBe('Test');
         expect((wrapper.get('#email').element as HTMLInputElement).value).toBe('test@example.com');
-        expect(wrapper.text()).not.toContain('Your email address is unverified.');
+        expect(wrapper.text()).not.toContain('メールアドレスが確認されていません。');
     });
 
     it('email を変えて保存すると、auth store と未認証の表示を更新する', async () => {
@@ -51,7 +51,7 @@ describe('ProfileView', () => {
         await flushPromises();
 
         expect(useAuthStore().user.value).toEqual(updated);
-        expect(wrapper.text()).toContain('Your email address is unverified.');
+        expect(wrapper.text()).toContain('メールアドレスが確認されていません。');
     });
 
     it('読み込みに失敗したら alert を出し、再読み込みで form を表示する', async () => {

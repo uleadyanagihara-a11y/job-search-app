@@ -63,11 +63,11 @@ const resending = resendForm.processing;
     <section>
         <header>
             <h2 class="text-lg font-medium text-fg-strong">
-                Profile Information
+                プロフィール情報
             </h2>
 
             <p class="mt-1 text-sm text-fg-muted">
-                Update your account's profile information and email address.
+                名前とメールアドレスを変更できます。
             </p>
         </header>
 
@@ -86,7 +86,7 @@ const resending = resendForm.processing;
             <div>
                 <InputLabel
                     for="name"
-                    value="Name"
+                    value="名前"
                 />
 
                 <TextInput
@@ -111,7 +111,7 @@ const resending = resendForm.processing;
             <div>
                 <InputLabel
                     for="email"
-                    value="Email"
+                    value="メールアドレス"
                 />
 
                 <TextInput
@@ -134,7 +134,7 @@ const resending = resendForm.processing;
 
             <div v-if="unverified">
                 <p class="mt-2 text-sm text-fg">
-                    Your email address is unverified.
+                    メールアドレスが確認されていません。
                     <!-- 旧 Link（method="post" as="button"）は API を呼ぶ button にする（§3.3）。 -->
                     <button
                         type="button"
@@ -142,7 +142,7 @@ const resending = resendForm.processing;
                         :disabled="resending"
                         @click="resendVerification"
                     >
-                        Click here to re-send the verification email.
+                        確認メールを再送信する
                     </button>
                 </p>
 
@@ -165,7 +165,7 @@ const resending = resendForm.processing;
 
             <div class="flex items-center gap-4">
                 <PrimaryButton :disabled="processing">
-                    Save
+                    保存
                 </PrimaryButton>
 
                 <Transition
@@ -179,7 +179,7 @@ const resending = resendForm.processing;
                         role="status"
                         class="text-sm text-fg-muted"
                     >
-                        Saved.
+                        保存しました。
                     </p>
                 </Transition>
             </div>

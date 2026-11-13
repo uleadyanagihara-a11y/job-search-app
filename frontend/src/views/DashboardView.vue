@@ -13,7 +13,7 @@ const justVerified = computed(() => route.query.verified === '1');
     <AuthenticatedLayout>
         <template #header>
             <h1 class="text-xl font-semibold leading-tight text-fg">
-                Dashboard
+                ダッシュボード
             </h1>
         </template>
 
@@ -29,7 +29,7 @@ const justVerified = computed(() => route.query.verified === '1');
 
                 <div class="overflow-hidden bg-surface shadow-xs sm:rounded-lg">
                     <div class="p-6 text-fg-strong">
-                        You're logged in!
+                        ログインしています。
                     </div>
                 </div>
             </div>

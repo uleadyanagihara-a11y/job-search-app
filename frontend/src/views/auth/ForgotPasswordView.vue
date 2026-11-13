@@ -28,9 +28,7 @@ async function onSubmit(): Promise<void> {
 <template>
     <GuestLayout>
         <div class="mb-4 text-sm text-fg-muted">
-            Forgot your password? No problem. Just let us know your email
-            address and we will email you a password reset link that will allow
-            you to choose a new one.
+            登録したメールアドレスを入力してください。パスワードを再設定するためのリンクをお送りします。
         </div>
 
         <div
@@ -53,7 +51,7 @@ async function onSubmit(): Promise<void> {
             <div>
                 <InputLabel
                     for="email"
-                    value="Email"
+                    value="メールアドレス"
                 />
 
                 <TextInput
@@ -75,19 +73,19 @@ async function onSubmit(): Promise<void> {
                 />
             </div>
 
-            <div class="mt-4 flex items-center justify-end">
+            <div class="mt-4 flex flex-wrap items-center justify-end gap-y-2">
                 <RouterLink
                     :to="{ name: 'login' }"
                     class="rounded-md text-sm text-fg-muted underline hover:text-fg-strong focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                 >
-                    Back to log in
+                    ログインに戻る
                 </RouterLink>
 
                 <PrimaryButton
                     class="ms-4"
                     :disabled="processing"
                 >
-                    Email Password Reset Link
+                    再設定リンクを送信
                 </PrimaryButton>
             </div>
         </form>

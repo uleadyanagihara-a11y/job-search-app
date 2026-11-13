@@ -43,12 +43,11 @@ async function onSubmit(): Promise<void> {
     <section>
         <header>
             <h2 class="text-lg font-medium text-fg-strong">
-                Update Password
+                パスワードの変更
             </h2>
 
             <p class="mt-1 text-sm text-fg-muted">
-                Ensure your account is using a long, random password to stay
-                secure.
+                安全のため、長く推測されにくいパスワードを設定してください。
             </p>
         </header>
 
@@ -67,7 +66,7 @@ async function onSubmit(): Promise<void> {
             <div>
                 <InputLabel
                     for="update_password_current_password"
-                    value="Current Password"
+                    value="現在のパスワード"
                 />
 
                 <TextInput
@@ -91,7 +90,7 @@ async function onSubmit(): Promise<void> {
             <div>
                 <InputLabel
                     for="update_password_password"
-                    value="New Password"
+                    value="新しいパスワード"
                 />
 
                 <TextInput
@@ -115,7 +114,7 @@ async function onSubmit(): Promise<void> {
             <div>
                 <InputLabel
                     for="update_password_password_confirmation"
-                    value="Confirm Password"
+                    value="新しいパスワード（確認）"
                 />
 
                 <TextInput
@@ -139,7 +138,7 @@ async function onSubmit(): Promise<void> {
 
             <div class="flex items-center gap-4">
                 <PrimaryButton :disabled="processing">
-                    Save
+                    保存
                 </PrimaryButton>
 
                 <Transition
@@ -153,7 +152,7 @@ async function onSubmit(): Promise<void> {
                         role="status"
                         class="text-sm text-fg-muted"
                     >
-                        Saved.
+                        保存しました。
                     </p>
                 </Transition>
             </div>

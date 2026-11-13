@@ -74,7 +74,7 @@ async function onSubmit(): Promise<void> {
             <div>
                 <InputLabel
                     for="email"
-                    value="Email"
+                    value="メールアドレス"
                 />
 
                 <TextInput
@@ -99,7 +99,7 @@ async function onSubmit(): Promise<void> {
             <div class="mt-4">
                 <InputLabel
                     for="password"
-                    value="Password"
+                    value="パスワード"
                 />
 
                 <TextInput
@@ -126,23 +126,23 @@ async function onSubmit(): Promise<void> {
                         v-model="data.remember"
                         name="remember"
                     />
-                    <span class="ms-2 text-sm text-fg-muted">Remember me</span>
+                    <span class="ms-2 text-sm text-fg-muted">ログインしたままにする</span>
                 </label>
             </div>
 
-            <div class="mt-4 flex items-center justify-end">
+            <div class="mt-4 flex flex-wrap items-center justify-end gap-y-2">
                 <RouterLink
                     :to="{ name: 'password.request' }"
                     class="rounded-md text-sm text-fg-muted underline hover:text-fg-strong focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                 >
-                    Forgot your password?
+                    パスワードをお忘れの方
                 </RouterLink>
 
                 <PrimaryButton
                     class="ms-4"
                     :disabled="processing"
                 >
-                    Log in
+                    ログイン
                 </PrimaryButton>
             </div>
         </form>
@@ -152,7 +152,7 @@ async function onSubmit(): Promise<void> {
                 :to="{ name: 'register', query: route.query }"
                 class="rounded-md underline hover:text-fg-strong focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
             >
-                Create an account
+                アカウントを作成
             </RouterLink>
         </p>
     </GuestLayout>

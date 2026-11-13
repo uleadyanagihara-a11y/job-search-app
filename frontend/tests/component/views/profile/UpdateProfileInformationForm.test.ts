@@ -20,7 +20,7 @@ function mountForm(current: User = verifiedUser) {
 }
 
 describe('UpdateProfileInformationForm', () => {
-    it('name・email を送り、更新済みの user で auth store を更新して Saved. を表示する', async () => {
+    it('name・email を送り、更新済みの user で auth store を更新して「保存しました。」を表示する', async () => {
         const updated = { ...verifiedUser, name: 'Renamed' };
         vi.mocked(profileApi.updateProfile).mockResolvedValue(updated);
         const wrapper = mountForm();
@@ -31,7 +31,7 @@ describe('UpdateProfileInformationForm', () => {
 
         expect(profileApi.updateProfile).toHaveBeenCalledWith({ name: 'Renamed', email: 'test@example.com' });
         expect(useAuthStore().user.value).toEqual(updated);
-        expect(wrapper.get('[role="status"]').text()).toBe('Saved.');
+        expect(wrapper.get('[role="status"]').text()).toBe('保存しました。');
     });
 
     it('422 は各 field の下に表示し、入力は残す', async () => {
@@ -68,7 +68,7 @@ describe('UpdateProfileInformationForm', () => {
     it('認証済みなら確認メールの再送は出さない', () => {
         const wrapper = mountForm();
 
-        expect(wrapper.text()).not.toContain('Your email address is unverified.');
+        expect(wrapper.text()).not.toContain('メールアドレスが確認されていません。');
     });
 
     it('未認証なら確認メールを再送し、API の message を表示する', async () => {

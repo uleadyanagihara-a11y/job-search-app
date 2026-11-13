@@ -16,22 +16,22 @@ test('メール認証後の dashboard から navigation で移動し、desktop�
 
     await page.goto(verifyUrl!);
     await expect(page).toHaveURL('/dashboard?verified=1');
-    await expect(page).toHaveTitle('Dashboard - Job Search App');
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+    await expect(page).toHaveTitle('ダッシュボード - Job Search App');
+    await expect(page.getByRole('heading', { name: 'ダッシュボード' })).toBeVisible();
     await expect(page.getByRole('status')).toHaveText('メールアドレスの確認が完了しました。');
-    await expect(page.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
+    await expect(page.getByRole('link', { name: 'ダッシュボード' })).toHaveAttribute('aria-current', 'page');
 
     // desktop: user 名の dropdown から Profile へ移動し、logo で dashboard へ戻る
     await page.getByRole('button', { name: 'E2E User' }).click();
-    await page.getByRole('link', { name: 'Profile' }).click();
+    await page.getByRole('link', { name: 'プロフィール' }).click();
     await expect(page).toHaveURL('/profile');
-    await expect(page.getByRole('link', { name: 'Dashboard' })).not.toHaveAttribute('aria-current', 'page');
+    await expect(page.getByRole('link', { name: 'ダッシュボード' })).not.toHaveAttribute('aria-current', 'page');
 
     await page.getByRole('link', { name: 'Job Search App' }).click();
     await expect(page).toHaveURL('/dashboard');
 
     await page.getByRole('button', { name: 'E2E User' }).click();
-    await page.getByRole('button', { name: 'Log Out' }).click();
+    await page.getByRole('button', { name: 'ログアウト' }).click();
     await expect(page).toHaveURL('/login');
 
     // session が破棄され、保護された画面は再び login へ送られる
@@ -40,15 +40,15 @@ test('メール認証後の dashboard から navigation で移動し、desktop�
 
     // mobile: hamburger の responsive menu から logout する
     await page.setViewportSize({ width: 375, height: 800 });
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Log in' }).click();
+    await page.getByLabel('メールアドレス').fill(email);
+    await page.getByLabel('パスワード').fill(PASSWORD);
+    await page.getByRole('button', { name: 'ログイン' }).click();
     await expect(page).toHaveURL('/dashboard');
 
-    await expect(page.getByRole('button', { name: 'Log Out' })).toBeHidden();
-    await page.getByRole('button', { name: 'Navigation' }).click();
+    await expect(page.getByRole('button', { name: 'ログアウト' })).toBeHidden();
+    await page.getByRole('button', { name: 'メニュー' }).click();
     await expect(page.locator('#responsive-navigation')).toContainText(email);
-    await page.getByRole('button', { name: 'Log Out' }).click();
+    await page.getByRole('button', { name: 'ログアウト' }).click();
     await expect(page).toHaveURL('/login');
 
     const user = await page.request.get('/api/user', { headers: { Accept: 'application/json' } });
@@ -57,15 +57,15 @@ test('メール認証後の dashboard から navigation で移動し、desktop�
     // 別 tab 等で既に logout 済みの session でも、Log Out は `?redirect=` 無しの login へ進む。
     // 実際の Laravel が（古い XSRF-TOKEN での 419 → 再送を経ても）401 を返すことの確認を兼ねる。
     await page.setViewportSize({ width: 1280, height: 800 });
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Log in' }).click();
+    await page.getByLabel('メールアドレス').fill(email);
+    await page.getByLabel('パスワード').fill(PASSWORD);
+    await page.getByRole('button', { name: 'ログイン' }).click();
     await expect(page).toHaveURL('/dashboard');
 
     const otherTab = await page.context().newPage();
     await otherTab.goto('/dashboard');
     await otherTab.getByRole('button', { name: 'E2E User' }).click();
-    await otherTab.getByRole('button', { name: 'Log Out' }).click();
+    await otherTab.getByRole('button', { name: 'ログアウト' }).click();
     await expect(otherTab).toHaveURL('/login');
     await otherTab.close();
 
@@ -77,7 +77,7 @@ test('メール認証後の dashboard から navigation で移動し、desktop�
     });
 
     await page.getByRole('button', { name: 'E2E User' }).click();
-    await page.getByRole('button', { name: 'Log Out' }).click();
+    await page.getByRole('button', { name: 'ログアウト' }).click();
     await expect(page).toHaveURL('/login');
     await expect(page.getByRole('alert')).toHaveCount(0);
     expect(logoutStatuses.at(-1)).toBe(401);
