@@ -24,6 +24,7 @@ export function createTestRouter() {
             { path: '/confirm-password', name: 'password.confirm', component: Stub },
             { path: '/dashboard', name: 'dashboard', component: Stub },
             { path: '/profile', name: 'profile', component: Stub },
+            { path: '/invitations/:token', name: 'invitation.accept', component: Stub },
         ],
     });
 }

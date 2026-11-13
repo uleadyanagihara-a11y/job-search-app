@@ -3,16 +3,21 @@
 namespace Database\Seeders;
 
 use App\Models\Company;
+use App\Models\CompanyInvitation;
 use App\Models\User;
+use App\Notifications\CompanyInvitationNotification;
 use Database\Seeders\Concerns\RunsOnlyInLocalEnvironments;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 
 /**
  * E2E 用のデータ。compose.yaml の laravel.e2e が起動のたびに `migrate:fresh --seeder=E2eSeeder` で入れる。
  *
  * 各 test が register API で user を作ると rate limit の待ちが積み上がるため、E2E で使う user はここでまとめて作る
  * （docs/domain-design.md 2 章）。email と password は frontend/e2e/helpers.ts の E2E_USERS と揃える。
+ *
+ * artisan は Playwright から呼べないため、招待はここで作ってメールを送る。E2E は Mailpit からメールの URL を取る。
  */
 class E2eSeeder extends Seeder
 {
@@ -45,5 +50,11 @@ class E2eSeeder extends Seeder
             'email' => 'e2e-suspended@example.com',
             'password' => $password,
         ]);
+
+        $invitedEmail = 'e2e-invited@example.com';
+
+        Notification::route('mail', $invitedEmail)->notify(
+            new CompanyInvitationNotification($company, CompanyInvitation::issue($company, $invitedEmail)),
+        );
     }
 }
