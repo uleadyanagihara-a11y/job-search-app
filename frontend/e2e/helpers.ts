@@ -108,6 +108,9 @@ export const E2E_USERS = {
     suspended: { email: 'e2e-suspended@example.com', name: 'E2E 停止中の担当者' },
 } as const;
 
+/** E2eSeeder が招待メールを送る宛先（企業は E2E_USERS.company と同じ）。 */
+export const E2E_INVITED_EMAIL = 'e2e-invited@example.com';
+
 export type E2eUser = keyof typeof E2E_USERS;
 
 /**

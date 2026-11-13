@@ -296,7 +296,7 @@ docker compose rm -sf laravel.e2e nginx-e2e
 ```
 
 - `test` profile の`frontend-e2e`（`mcr.microsoft.com/playwright`、`@playwright/test`と同じ version）が、E2E 専用の`nginx-e2e`経由で`http://localhost`を開きます。Vite は開発用の`frontend` serviceを共有します。
-- Laravel は E2E 専用の`laravel.e2e`で、DB は`testing_e2e`です。開発用 DB（`job_search_app`）とPHPUnit用の`testing`は更新しません。`laravel.e2e`は起動のたびに`migrate:fresh`するため、実行後に`docker compose rm -sf laravel.e2e nginx-e2e`で消しておくと、次回は空のDBから始まります。
+- Laravel は E2E 専用の`laravel.e2e`で、DB は`testing_e2e`です。開発用 DB（`job_search_app`）とPHPUnit用の`testing`は更新しません。`laravel.e2e`は起動のたびに`migrate:fresh`と`E2eSeeder`（ロールごとの user、停止中の企業、招待メール）を実行するため、実行後に`docker compose rm -sf laravel.e2e nginx-e2e`で消しておくと、次回は初期データから始まります。招待は 1 回しか使えないため、消さずに 2 回目を実行すると`invitation.spec.ts`が失敗します。
 - `laravel.e2e`と`nginx-e2e`は`sail stop` / `sail down`の対象外です（`test` profileのため）。残っていると`sail down`がnetworkを削除できません。
 - 失敗時の trace / screenshot は`frontend/test-results/`、HTML レポートは`frontend/playwright-report/`に出力されます。
 - Playwright を上げるときは、`frontend/package.json`の`@playwright/test`と`compose.yaml`の`frontend-e2e`の image tag を同時に変えます（Dependabot は対象外にしています）。CI の E2E job は両者が違うと失敗します。

@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use App\Enums\Role;
+use App\Models\CompanyInvitation;
 use App\Models\User;
+use App\Notifications\CompanyInvitationNotification;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\E2eSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\TestCase;
@@ -47,8 +50,10 @@ class SeederTest extends TestCase
         $this->assertDatabaseCount('users', 0);
     }
 
-    public function test_e2e_seeder_creates_users_for_each_role(): void
+    public function test_e2e_seeder_creates_users_for_each_role_and_sends_an_invitation(): void
     {
+        Notification::fake();
+
         $this->seed(E2eSeeder::class);
 
         $this->assertSame(Role::Seeker, User::query()->where('email', 'e2e-seeker@example.com')->sole()->role);
@@ -58,5 +63,8 @@ class SeederTest extends TestCase
         $this->assertFalse($company->belongsToSuspendedCompany());
 
         $this->assertTrue(User::query()->where('email', 'e2e-suspended@example.com')->sole()->belongsToSuspendedCompany());
+
+        $this->assertSame('e2e-invited@example.com', CompanyInvitation::query()->sole()->email);
+        Notification::assertSentOnDemandTimes(CompanyInvitationNotification::class, 1);
     }
 }
