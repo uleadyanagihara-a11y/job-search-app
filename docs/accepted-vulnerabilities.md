@@ -14,14 +14,18 @@ Composer（`composer audit`）には許容の仕組みを置いていない。ad
 
 | advisory | 深刻度 | package（現在の版） | 経路 | 修正版 |
 | --- | --- | --- | --- | --- |
-| [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)（`**/../` を含む glob pattern の前処理で globParts が増幅し、CPU・メモリを消費する DoS） | moderate | `minimatch@10.2.6` | `eslint` / `@eslint/config-array` / `@typescript-eslint/typescript-estree` → `minimatch`、`@vue/test-utils` → `js-beautify@2.0.3` → `editorconfig@3.0.2` / `glob` → `minimatch` | `11.0.1`（ただし依存元が `^10.2.x` / `~10.2.4` を要求） |
+| [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)（`**/../` を含む glob pattern の前処理で globParts が増幅し、CPU・メモリを消費する DoS） | moderate | `minimatch@10.2.6` | `@typescript-eslint/typescript-estree` → `minimatch`、`@vue/test-utils` → `js-beautify@2.0.3` → `editorconfig@3.0.2` / `glob` → `minimatch` | `11.0.1`（ただし依存元が `^10.2.x` / `~10.2.4` を要求） |
 | [GHSA-3g3m-2fjr-6pw4](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4)（`AbortSignal` で中断した walk が裏で走査を続ける） | moderate | `glob@13.0.6` | `@vue/test-utils` → `js-beautify@2.0.3` → `glob` | `14.0.2`（ただし `js-beautify` が `^13.0.6` を要求） |
 
-`npm audit` では 15 件と表示されるが、上の 2 advisory が依存の連鎖で数えられているだけである。
+`npm audit` では複数件と表示されるが、上の 2 advisory が依存の連鎖で数えられているだけである。
 
-2026-11-05 時点で、各依存元の最新版（`eslint@10.14.0`、`@eslint/config-array@0.23.5`、`typescript-eslint@8.72.1`、
-`editorconfig@3.0.2`、`js-beautify@2.0.3`）も修正版を受け付けない。`npm audit` が示す修正手段（`fixAvailable`）は
-`eslint@4.0.0`・`@vue/test-utils@2.4.11` など、今より古い版へのダウングレードだけである。
+2026-11-16 に `eslint@10.15.0`・`@eslint/config-array@0.23.6` が `minimatch@^11.0.5` に対応したため、
+lockfile を更新し、この経路は `minimatch@11.0.8` になって解消した（`package.json` の範囲内の更新）。
+
+2026-11-16 時点で、残りの依存元の最新版（`typescript-eslint@8.72.2`（`typescript-estree` は `minimatch@^10.2.2`）、
+`js-beautify@2.0.3`（`editorconfig@^3`・`glob@^13.0.6`））は修正版を受け付けない。`editorconfig@4.0.1` は `minimatch@~11.0.5` に対応済みで、
+`js-beautify` がこれに上がれば `editorconfig` 経由の経路も解消する。`npm audit` が示す修正手段（`fixAvailable`）は
+`typescript-eslint@8.36.0`・`@vue/test-utils@2.4.11` など、今より古い版へのダウングレードだけである。
 
 #### 決定
 

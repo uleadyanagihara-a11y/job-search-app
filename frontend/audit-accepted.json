@@ -8,7 +8,7 @@
         },
         "GHSA-g3hv-75wg-m249": {
             "package": "minimatch@10.2.6",
-            "path": "eslint / @eslint/config-array / @typescript-eslint/typescript-estree / @vue/test-utils > js-beautify > (editorconfig@3.0.2 | glob) > minimatch",
+            "path": "@typescript-eslint/typescript-estree / @vue/test-utils > js-beautify > (editorconfig@3.0.2 | glob) > minimatch",
             "acceptedOn": "2026-11-05"
         }
     }
