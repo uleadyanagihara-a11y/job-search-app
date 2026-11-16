@@ -34,6 +34,58 @@ describe('UpdateProfileInformationForm', () => {
         expect(wrapper.get('[role="status"]').text()).toBe('保存しました。');
     });
 
+    it('email を変えないときは現在の password の欄を出さず、送らない', async () => {
+        vi.mocked(profileApi.updateProfile).mockResolvedValue(verifiedUser);
+        const wrapper = mountForm();
+
+        expect(wrapper.find('#profile_current_password').exists()).toBe(false);
+
+        await wrapper.get('form').trigger('submit');
+        await flushPromises();
+
+        expect(profileApi.updateProfile).toHaveBeenCalledWith({ name: 'Test', email: 'test@example.com' });
+    });
+
+    it('email を変えると現在の password の欄を出して一緒に送り、成功したら欄を閉じる', async () => {
+        const updated = { ...verifiedUser, email: 'new@example.com', email_verified_at: null };
+        vi.mocked(profileApi.updateProfile).mockResolvedValue(updated);
+        const wrapper = mountForm();
+
+        await wrapper.get('#email').setValue('new@example.com');
+        expect(wrapper.find('#profile_current_password').exists()).toBe(true);
+
+        await wrapper.get('#profile_current_password').setValue('password');
+        await wrapper.get('form').trigger('submit');
+        await wrapper.setProps({ user: updated });
+        await flushPromises();
+
+        expect(profileApi.updateProfile).toHaveBeenCalledWith({
+            name: 'Test',
+            email: 'new@example.com',
+            current_password: 'password',
+        });
+        expect(wrapper.find('#profile_current_password').exists()).toBe(false);
+    });
+
+    it('現在の password が誤りなら field に出し、欄を空にして focus する', async () => {
+        vi.mocked(profileApi.updateProfile).mockRejectedValue(
+            validationError({ current_password: ['パスワードが正しくありません。'] }),
+        );
+        const wrapper = mountForm();
+
+        await wrapper.get('#email').setValue('new@example.com');
+        await wrapper.get('#profile_current_password').setValue('wrong');
+        await wrapper.get('form').trigger('submit');
+        await flushPromises();
+
+        const input = wrapper.get('#profile_current_password');
+        expect(wrapper.get('#profile_current_password-error').text()).toBe('パスワードが正しくありません。');
+        expect(input.attributes('aria-invalid')).toBe('true');
+        expect((input.element as HTMLInputElement).value).toBe('');
+        expect(document.activeElement).toBe(input.element);
+        expect((wrapper.get('#email').element as HTMLInputElement).value).toBe('new@example.com');
+    });
+
     it('422 は各 field の下に表示し、入力は残す', async () => {
         vi.mocked(profileApi.updateProfile).mockRejectedValue(
             validationError({ name: ['名前は必須です。'], email: ['このメールアドレスは既に使われています。'] }),

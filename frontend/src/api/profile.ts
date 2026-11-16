@@ -6,7 +6,14 @@ export async function fetchProfile(): Promise<User> {
     return expectShape(await apiRequest('GET', '/profile'), isUserResponse).data;
 }
 
-export async function updateProfile(payload: { name: string; email: string }): Promise<User> {
+export interface UpdateProfilePayload {
+    name: string;
+    email: string;
+    /** email を変えるときだけ必須（docs/domain-api-contract.md M2.2）。変えないときは送らない。 */
+    current_password?: string;
+}
+
+export async function updateProfile(payload: UpdateProfilePayload): Promise<User> {
     return expectShape(await apiRequest('PATCH', '/profile', { body: payload }), isUserResponse).data;
 }
 

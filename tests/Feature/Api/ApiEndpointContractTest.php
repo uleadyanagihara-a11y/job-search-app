@@ -36,7 +36,7 @@ class ApiEndpointContractTest extends TestCase
         'POST /api/auth/email/verification-notification' => ['access' => 'auth', 'limiter' => 'auth.verification-notification', 'required' => []],
         'POST /api/auth/confirm-password' => ['access' => 'auth', 'limiter' => 'auth.confirm-password', 'required' => ['password']],
         'GET /api/profile' => ['access' => 'auth', 'limiter' => null, 'required' => []],
-        'PATCH /api/profile' => ['access' => 'auth', 'limiter' => null, 'required' => ['name', 'email']],
+        'PATCH /api/profile' => ['access' => 'auth', 'limiter' => 'auth.confirm-password', 'required' => ['name', 'email']],
         'DELETE /api/profile' => ['access' => 'auth', 'limiter' => 'auth.confirm-password', 'required' => ['password']],
         'PUT /api/profile/password' => ['access' => 'auth', 'limiter' => 'auth.confirm-password', 'required' => ['current_password', 'password']],
     ];
