@@ -63,7 +63,7 @@ Vue SPA（経緯と API 契約は `docs/inertia-removal-migration.md`）。Sail 
   `app.css` には v3 と同じ見た目にする互換 style（border の既定色 gray-200、button の cursor: pointer）がある。
   v4 で見た目が変わりやすい点: `space-y-*` / `space-x-*` は最後以外の子に margin を付けるため、最後の子が閉じた Modal（dialog）等だと余白が残る。
   `transform` class 単体では transform を指定しないため、重なり順を `transform` に頼らず `relative` / `z-*` で決める。`*-opacity-*` は無く `ring-black/5` のように書く。
-- devDependencies の推移的依存に修正版が無い npm audit の advisory は、記録して許容することがある（現在は ESLint・Vue Test Utils 経由の `minimatch` / `glob`。理由・前提・再評価は `docs/accepted-vulnerabilities.md`）。
+- devDependencies の推移的依存に修正版が無い npm audit の advisory は、記録して許容することがある（現在は Vue Test Utils 経由の `minimatch` / `glob`。理由・前提・再評価は `docs/accepted-vulnerabilities.md`）。
   `overrides` で推移的依存を強制更新しない。許容する advisory は `frontend/audit-accepted.json` に載せ、CI の `npm audit` job が照合する。
 - Figtree は `frontend/src/assets/fonts/` に self-host している（`@font-face` は `frontend/src/assets/app.css`）。外部 font CDN は使わない。
 

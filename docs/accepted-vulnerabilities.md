@@ -8,13 +8,13 @@ Composer（`composer audit`）には許容の仕組みを置いていない。ad
 
 ## 許容中
 
-### 2026-11-05: ESLint・typescript-eslint・@vue/test-utils の依存（minimatch / glob）
+### 2026-11-05: @vue/test-utils の依存（minimatch / glob）
 
 #### 対象
 
 | advisory | 深刻度 | package（現在の版） | 経路 | 修正版 |
 | --- | --- | --- | --- | --- |
-| [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)（`**/../` を含む glob pattern の前処理で globParts が増幅し、CPU・メモリを消費する DoS） | moderate | `minimatch@10.2.6` | `@typescript-eslint/typescript-estree` → `minimatch`、`@vue/test-utils` → `js-beautify@2.0.3` → `editorconfig@3.0.2` / `glob` → `minimatch` | `11.0.1`（ただし依存元が `^10.2.x` / `~10.2.4` を要求） |
+| [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)（`**/../` を含む glob pattern の前処理で globParts が増幅し、CPU・メモリを消費する DoS） | moderate | `minimatch@10.2.6` | `@vue/test-utils` → `js-beautify@2.0.3` → `editorconfig@3.0.2` / `glob` → `minimatch` | `11.0.1`（ただし依存元が `^10.2.x` / `~10.2.4` を要求） |
 | [GHSA-3g3m-2fjr-6pw4](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4)（`AbortSignal` で中断した walk が裏で走査を続ける） | moderate | `glob@13.0.6` | `@vue/test-utils` → `js-beautify@2.0.3` → `glob` | `14.0.2`（ただし `js-beautify` が `^13.0.6` を要求） |
 
 `npm audit` では複数件と表示されるが、上の 2 advisory が依存の連鎖で数えられているだけである。
@@ -22,10 +22,12 @@ Composer（`composer audit`）には許容の仕組みを置いていない。ad
 2026-11-16 に `eslint@10.15.0`・`@eslint/config-array@0.23.6` が `minimatch@^11.0.5` に対応したため、
 lockfile を更新し、この経路は `minimatch@11.0.8` になって解消した（`package.json` の範囲内の更新）。
 
-2026-11-16 時点で、残りの依存元の最新版（`typescript-eslint@8.72.2`（`typescript-estree` は `minimatch@^10.2.2`）、
-`js-beautify@2.0.3`（`editorconfig@^3`・`glob@^13.0.6`））は修正版を受け付けない。`editorconfig@4.0.1` は `minimatch@~11.0.5` に対応済みで、
+2026-11-19 に `typescript-eslint@8.73.0`（`typescript-estree` が `minimatch@^11.0.1`）が公開されたため、
+`typescript-eslint` を `^8.73.0` に上げ、この経路は `minimatch@11.0.9` になって解消した。
+
+2026-11-19 時点で、残りの依存元の最新版（`js-beautify@2.0.3`（`editorconfig@^3`・`glob@^13.0.6`））は修正版を受け付けない。`editorconfig@4.0.1` は `minimatch@~11.0.5` に対応済みで、
 `js-beautify` がこれに上がれば `editorconfig` 経由の経路も解消する。`npm audit` が示す修正手段（`fixAvailable`）は
-`typescript-eslint@8.36.0`・`@vue/test-utils@2.4.11` など、今より古い版へのダウングレードだけである。
+`@vue/test-utils@2.4.11` への、今より古い版へのダウングレードだけである。
 
 #### 決定
 
@@ -34,8 +36,8 @@ lockfile を更新し、この経路は `minimatch@11.0.8` になって解消し
 
 #### 許容する理由
 
-- **devDependencies だけで、配信物に入らない。** `npm audit --omit=dev` は 0 件。lint（ESLint）と component テスト（Vue Test Utils の HTML 整形）でだけ動く。
-- **pattern と走査対象は自前のもの。** `minimatch` に渡るのは `eslint.config.js` の `files` / `ignores`、`.editorconfig` の section 名、`js-beautify` の設定探索で、すべてリポジトリ内のファイルである。
+- **devDependencies だけで、配信物に入らない。** `npm audit --omit=dev` は 0 件。component テスト（Vue Test Utils の HTML 整形）でだけ動く。
+- **pattern と走査対象は自前のもの。** `minimatch` に渡るのは `.editorconfig` の section 名、`js-beautify` の設定探索で、すべてリポジトリ内のファイルである。
   `glob` の `AbortSignal` は使っていない（`js-beautify` も中断しない）ので、中断後に走査が続く問題は起きない。
 - **影響は DoS に限られる。** 悪意のある pattern を入れられるのはリポジトリにコードを書ける者だけで、その者は lint・テストの中で任意のコードを実行できるため、この脆弱性で新たにできることは増えない。
 
