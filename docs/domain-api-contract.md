@@ -163,3 +163,26 @@ API ではないが、契約の確認に必要なものだけ書く。
 - `company:create`・`company:invite` は email を小文字にそろえる。`company:invite` は停止中の企業には送らずエラーで終了する（受諾できない招待を送らないため）。`company:create` は招待メールを送れなかったら企業も作らない。
 - 開発用の user は `DatabaseSeeder`（`seeker@example.com`・`company@example.com`、password は `password`）、E2E 用は `E2eSeeder`（`laravel.e2e` の起動時。求職者・企業担当者・停止中の企業の担当者と、`e2e-invited@example.com` への招待メール）。E2E の user の email は `frontend/e2e/helpers.ts` の `E2E_USERS` と揃える。
 - SPA の共通部品として `PageHeading`・`ContentCard`・`AlertMessage`・`MutedText`・`SavedStatus`・`SelectInput`・`TextareaInput` を `frontend/src/components/` に足した。
+
+## M3: 企業の求人管理と企業情報の編集
+
+状態: **下書き**（2026-11-19 に認可の方針だけ先に書いた。endpoint・field・validation は M3 の開始時に書き、レビューで確定する）。
+
+### M3.x 他社の求人への操作の拒否（2026-11-19 決定）
+
+`PATCH /api/company/job-postings/123` のように、他社の担当者が自分の cookie で他社の求人の id を指定した request を、API が拒否する。SPA で編集ボタンや route を隠すのは表示のためだけで、拒否にはならない。
+
+- route: 企業側の求人の管理は `/api/company/job-postings/...`、求職者が見る公開中の求人は `/api/job-postings/...` に分ける（同じ path をロールで分岐させない）。path の名前は M3 で確定する。
+- 企業側の求人の endpoint（一覧以外）は全部 `RESOURCE_SCOPES` が `owner`、`roles` は `['company']`。求職者は `403 forbidden`、他社の担当者は求人が公開中でも `404 not_found`。
+- Policy（`JobPostingPolicy`）: 企業側の ability（`view`・`update`・公開・終了・削除など）は、private method `belongsToCompanyOf(User, JobPosting)` で「担当者の所属企業の id と求人の `company_id` が一致するか」を判定し、違えば `Response::denyAsNotFound()`。ability ごとに条件を書かない。呼び出しは controller の `Gate::authorize()` の 1 か所で、FormRequest はその後に `app()` で解決する（validation より前に 404 を返すため。M2.9）。
+- 一覧: Policy の `viewAny` で「企業担当者か」を見て、取得は担当者の所属企業で `whereBelongsTo()` して絞る。詳細・更新も一覧と同じ範囲になる。
+- `company_id` は `#[Fillable]` にも FormRequest の rules にも入れない。作成時に担当者の所属企業から `forceFill` で入れ、更新では変えない（自社の求人を他社へ移せない）。
+- 求人の下にぶら下がる resource（M5 の応募など）の route は `scopeBindings()` にし、自社の求人の id と他社の応募の id を組み合わせても読めないようにする。
+
+feature test の観点（§5.5.5 の表に加えて）:
+
+| 対象 | 確認すること |
+| --- | --- |
+| 企業側の求人の各 endpoint | 他社の担当者は、求人が下書き・公開中・終了のどれでも `404`、存在しない id と同じ body、DB が変わらない。空 body でも `422` より前に `404` |
+| 作成・編集 | body の `company_id`・`status`・`published_at` は無視される（自社の求人を他社に移せない） |
+| 一覧 | 他社の求人を用意しても、response に自社の求人だけが含まれる（件数と id の両方） |
