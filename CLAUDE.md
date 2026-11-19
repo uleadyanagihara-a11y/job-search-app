@@ -151,9 +151,21 @@ minor・patch はエコシステムごとに 1 PR にまとめ、major は個別
 - PR では上記 CI（Laravel テスト・frontend の build 等）が走る。**自動マージはしない。CI が通ったことを確認して手動でマージする**。
 - マージ後、ローカルは `./vendor/bin/sail composer install` / `docker compose run --rm --no-deps frontend npm ci` で反映する（npm は `docker compose restart frontend` も）。
 - `typescript` の minor/major は ignore している（上記の peer 上限のため）。外すときは dependabot.yml も直す。
-- PHP 本体・Node・Docker イメージ（`compose.yaml` の各タグ）・CI の runner OS は Dependabot の対象外。手動で上げる。
+- PHP 本体・Node・Docker イメージ（`compose.yaml` の各タグ）・CI の runner OS は Dependabot の対象外。手動で上げる（新しい版の検出は次の節）。
 - GitHub Actions の major 更新（例: `actions/checkout`）は、action の実行 Node が廃止される前に入れる。
   古いままだと CI の Annotations に「Node.js NN is deprecated」の warning が出る。
+
+### サーバーソフト本体の更新検出
+
+`.github/workflows/server-software-updates.yml` が毎週月曜 9:00 JST（手動実行も可）に、nginx・PHP・Node.js・Redis・MySQL の版を確かめ、
+更新があれば label `server-software-update` の Issue を作る。更新そのものはしない（上げるのは手動）。
+
+- 使っている版は `compose.yaml` の既定値（`NGINX_VERSION:-…` 等）と `ci.yml` の `PHP_MIN_VERSION` から読む。書式を変えたら `.github/scripts/check_server_versions.py` の正規表現も直す（読めないと job が落ちる）。
+- 最新版とサポート期限は endoflife.date の API から取る。有志の管理で、公式の公開から 1 日ほど遅れることがある。
+- Issue を作るのは、同じ系列に新しい patch が出たときか、系列のサポートが終わったとき。同じタイトルの open な Issue があれば作らない。上げ終えたら Issue を閉じる。
+- 修正版がまだ無い脆弱性は検出できない。中身（何が直ったか）は Issue のリンク先で読む。
+- token は `contents: read` と `issues: write`。CI の「`contents: read` だけ」の例外なので、PR では動かさない（`pull_request` を trigger に足さない）。
+- script は標準ライブラリだけの Python で、ローカルでは `python3 -I .github/scripts/check_server_versions.py <出力 dir>` で試せる（API を読むだけで Issue は作らない）。
 
 ## コーディング規約
 

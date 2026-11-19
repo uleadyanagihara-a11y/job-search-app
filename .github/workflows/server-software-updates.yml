@@ -1,0 +1,55 @@
+name: Server software updates
+
+# サーバーソフト本体（nginx・MySQL・Redis・Node・PHP）は Dependabot の対象外のため、
+# 使っている版より新しい版が出ていたら Issue で知らせる（更新はしない。手動で上げる）。
+# - 使っている版: compose.yaml の既定値（NGINX_VERSION 等）と ci.yml の PHP_MIN_VERSION。
+# - 最新版・サポート期限: endoflife.date の API（有志の管理で、公式の公開から 1 日ほど遅れることがある）。
+# - PR では動かさない（PR のコードに issues: write の token を渡さないため）。
+on:
+  schedule:
+    # Dependabot・CI と同じ月曜 9:00 JST
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: server-software-updates
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check server software versions
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # 新しい版がある製品ごとに、Issue のタイトルと本文を out/ に書き出す（API は読むだけ）。
+      - name: Compare versions
+        run: python3 -I .github/scripts/check_server_versions.py out
+
+      # 同じタイトルの open な Issue があれば作らない（毎週同じ Issue が増えないように）。
+      - name: Create issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          LABEL: server-software-update
+        run: |
+          gh label create "$LABEL" --color B60205 \
+            --description 'サーバーソフト本体の更新（自動検出）' 2>/dev/null || true
+          shopt -s nullglob
+          for title_file in out/*.title; do
+            title=$(cat "$title_file")
+            body_file="${title_file%.title}.md"
+            if gh issue list --label "$LABEL" --state open --limit 100 \
+                --json title --jq '.[].title' | grep -Fxq -- "$title"; then
+              echo "skip (already open): $title"
+            else
+              gh issue create --title "$title" --body-file "$body_file" --label "$LABEL"
+            fi
+          done
