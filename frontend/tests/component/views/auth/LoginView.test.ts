@@ -82,6 +82,12 @@ describe('LoginView', () => {
         expect(wrapper.get('[role="status"]').text()).toContain('ログインしてください');
     });
 
+    it('?company_suspended=1 なら企業アカウントが停止されたことを伝える', async () => {
+        const { wrapper } = await mountAt(LoginView, '/login?company_suspended=1');
+
+        expect(wrapper.get('[role="alert"]').text()).toContain('この企業アカウントは現在利用できません');
+    });
+
     it('password 再設定と register への link を持つ', async () => {
         const { wrapper } = await mountAt(LoginView, '/login?redirect=/profile');
         const hrefs = wrapper.findAll('a').map((a) => a.attributes('href'));

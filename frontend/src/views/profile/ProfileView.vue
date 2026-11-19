@@ -20,7 +20,7 @@ async function load(): Promise<void> {
     loadError.value = null;
 
     try {
-        auth.setUser(await profileApi.fetchProfile());
+        await auth.syncFrom(profileApi.fetchProfile);
         loaded.value = true;
     } catch (caught) {
         if (!isApiError(caught)) {

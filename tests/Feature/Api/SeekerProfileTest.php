@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Http\Middleware\Api\EnsureApiEmailIsVerified;
+use App\Http\Middleware\Api\EnsureCompanyIsActive;
 use App\Models\SeekerProfile;
 use App\Models\User;
 use Illuminate\Auth\Middleware\Authenticate;
@@ -193,10 +194,12 @@ class SeekerProfileTest extends TestCase
             $router->gatherRouteMiddleware($route),
         );
 
+        // 停止中の企業の担当者は、メール確認より前に締め出す（M2.4）。
         $this->assertSame(
-            [Authenticate::class, EnsureApiEmailIsVerified::class, SubstituteBindings::class],
+            [Authenticate::class, EnsureCompanyIsActive::class, EnsureApiEmailIsVerified::class, SubstituteBindings::class],
             array_values(array_intersect($middleware, [
                 Authenticate::class,
+                EnsureCompanyIsActive::class,
                 EnsureApiEmailIsVerified::class,
                 SubstituteBindings::class,
             ])),

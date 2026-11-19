@@ -20,6 +20,58 @@ describe('useApiForm', () => {
         expect(form.processing.value).toBe(false);
     });
 
+    it('422 のうち form の field に無い key は、errors に入れず error に入れる', async () => {
+        const form = useApiForm({ email: '' });
+
+        await form.submit(async () => {
+            throw new ApiError(422, 'validation_failed', '入力内容を確認してください。', {
+                email: ['形式が不正です。'],
+                'skills.0': ['スキルは必須です。', '2 件目'],
+            });
+        });
+
+        expect(form.errors.value).toEqual({ email: '形式が不正です。' });
+        expect(form.error.value).toMatchObject({
+            status: 422,
+            code: 'validation_failed',
+            message: 'スキルは必須です。',
+            errors: { 'skills.0': ['スキルは必須です。', '2 件目'] },
+        });
+    });
+
+    it('fieldsWithoutError の key は、data にあっても error に入れる', async () => {
+        const form = useApiForm({ email: '', remember: false }, { fieldsWithoutError: ['remember'] });
+
+        await form.submit(async () => {
+            throw new ApiError(422, 'validation_failed', 'invalid', { remember: ['真偽値で指定してください。'] });
+        });
+
+        expect(form.errors.value).toEqual({});
+        expect(form.error.value?.message).toBe('真偽値で指定してください。');
+    });
+
+    it('422 の key がすべて form の field なら error は null のまま', async () => {
+        const form = useApiForm({ email: '' });
+        form.error.value = new ApiError(429, 'too_many_requests', 'x');
+
+        await form.submit(async () => {
+            throw new ApiError(422, 'validation_failed', 'invalid', { email: ['x'] });
+        });
+
+        expect(form.error.value).toBeNull();
+    });
+
+    it('Object の prototype の名前（constructor 等）の key も field に無いものとして扱う', async () => {
+        const form = useApiForm({ email: '' });
+
+        await form.submit(async () => {
+            throw new ApiError(422, 'validation_failed', 'invalid', { constructor: ['x'] });
+        });
+
+        expect(form.errors.value).toEqual({});
+        expect(form.error.value?.message).toBe('x');
+    });
+
     it('入力を変えた field の error だけ消える', async () => {
         const form = useApiForm({ email: '', password: '' });
         await form.submit(async () => {

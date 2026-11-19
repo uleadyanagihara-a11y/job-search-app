@@ -7,6 +7,7 @@ use App\Support\FrontendUrl;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class VerifyEmailController extends Controller
 {
@@ -20,6 +21,18 @@ class VerifyEmailController extends Controller
     public function __invoke(Request $request): RedirectResponse
     {
         $user = $request->user();
+
+        // 停止中の企業の担当者は、API の `api.company.active` と同じく logout して締め出す
+        // （docs/domain-design.md 2 章「企業の停止」）。停止の後に残った session で email_verified_at を
+        // 変えさせないため、user・hash の照合より前に見る。web route なので JSON ではなく SPA の login へ送る。
+        if ($user->belongsToSuspendedCompany()) {
+            Auth::guard('web')->logout();
+
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->away(FrontendUrl::to('/login', ['company_suspended' => 1]));
+        }
 
         // 「このリンクはログイン中の user のものか」を verified 判定より先に確認する。
         // 別 user のリンクで「認証済み」と見せたり、どちらかを更新したりしないため。

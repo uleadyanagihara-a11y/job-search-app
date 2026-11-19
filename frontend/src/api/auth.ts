@@ -12,12 +12,14 @@ import {
 
 /**
  * GET /api/user。未ログイン（401）は null。
+ * 所属企業が停止されていた（403 company_suspended）ときも、server が logout 済みなので null
+ * （handler が auth store に印を付け、router guard が `?company_suspended=1` の login へ送る）。
  */
 export async function fetchUser(): Promise<User | null> {
     try {
         return expectShape(await apiRequest('GET', '/user', { allowUnauthenticated: true }), isUserResponse).data;
     } catch (error) {
-        if (isApiError(error) && error.status === 401) {
+        if (isApiError(error) && (error.status === 401 || error.code === 'company_suspended')) {
             return null;
         }
 

@@ -4,6 +4,8 @@ import { ApiError, isApiError } from '@/api/client';
 // 旧 Inertia `useForm` の置き換え（docs/inertia-removal-migration.md §3.3, §8）。
 // 422 は field ごとの最初の message を errors に入れ、それ以外の ApiError は error に入れて
 // field error と混ぜない。401 は client の onUnauthenticated、419 は client の再送で処理済み。
+// 422 のうち form の field に無い key（API と画面の field 名のずれ、配列の `items.0` 等）は、
+// 画面のどこにも出ず「押しても何も起きない」状態になるため、error に入れて form 全体の失敗として出す。
 
 const RECENTLY_SUCCESSFUL_MS = 2000;
 
@@ -13,8 +15,15 @@ export interface SubmitOptions<R> {
     onSuccess?: (result: R) => void | Promise<void>;
 }
 
-export function useApiForm<T extends FormData>(initial: T) {
+export interface ApiFormOptions<T extends FormData> {
+    /** data にはあるが、field の下に error を出さない key（Login の `remember` 等）。422 で返ったら error に入れる。 */
+    fieldsWithoutError?: (keyof T & string)[];
+}
+
+export function useApiForm<T extends FormData>(initial: T, formOptions: ApiFormOptions<T> = {}) {
     const defaults = { ...initial };
+    const fieldsWithoutError = new Set<string>(formOptions.fieldsWithoutError ?? []);
+    const isShownField = (field: string): boolean => Object.hasOwn(defaults, field) && !fieldsWithoutError.has(field);
     const data = reactive({ ...initial }) as T;
     // reset-password の `token` のように入力欄の無い field の error も受けるため、key は string にする。
     const errors = ref<Record<string, string>>({});
@@ -98,11 +107,21 @@ export function useApiForm<T extends FormData>(initial: T) {
             }
 
             if (caught.code === 'validation_failed') {
-                errors.value = Object.fromEntries(
-                    Object.entries(caught.errors).flatMap(([field, messages]) =>
-                        messages[0] === undefined ? [] : [[field, messages[0]]],
-                    ),
+                const fieldErrors = Object.entries(caught.errors).flatMap(([field, messages]) =>
+                    messages[0] === undefined ? [] : [[field, messages[0]] as const],
                 );
+                const unshown = fieldErrors.filter(([field]) => !isShownField(field));
+
+                errors.value = Object.fromEntries(fieldErrors.filter(([field]) => isShownField(field)));
+
+                if (unshown.length > 0) {
+                    error.value = new ApiError(
+                        caught.status,
+                        caught.code,
+                        unshown[0]?.[1] ?? caught.message,
+                        Object.fromEntries(unshown.map(([field]) => [field, caught.errors[field] ?? []])),
+                    );
+                }
             } else {
                 error.value = caught;
             }

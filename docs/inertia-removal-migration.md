@@ -659,10 +659,16 @@ framework exceptionは`bootstrap/app.php`の`withExceptions()`から同じ生成
 
 | 対象 | 権限がないとき | 実装方法 |
 | --- | --- | --- |
-| 非公開データ（他人の応募履歴、他人宛てのスカウトなど） | 原則`404 not_found`。存在しないIDと同じresponseにして存在を推測させない | userの関連から取得する（`$request->user()->applications()->findOrFail($id)`）、scoped binding、またはPolicyで`Response::denyAsNotFound()` |
-| 公開されている対象（公開中の求人など）への、権限のない操作（他社求人の編集など） | `403 forbidden` | Policyで`deny()`（または`false`） |
+| 持ち主が決まっているデータへの、持ち主以外の操作（他人の応募履歴、他社の求人の閲覧・編集・公開・終了など） | `404 not_found`。存在しないIDと同じresponseにして存在を推測させない。**対象が公開中でも同じ** | userの関連から取得する（`$request->user()->applications()->findOrFail($id)`）、scoped binding、またはPolicyで`Response::denyAsNotFound()` |
+| 存在が公開されている対象への、ロール違いの操作（企業担当者が求職者向けの公開求人の詳細を開くなど） | `403 forbidden` | Policyで`deny()`（または`false`） |
 
 どちらにするかはresourceごとに決め、該当するPolicyのabilityにコメントで明記する。`denyAsNotFound()`はLaravelが`404`の`HttpException`に変換するため、rendererで`not_found`になる。
+
+- 他社の求人の編集を、公開中なら`403`・下書きや終了なら`404`のように分けない（2026-11-19 決定）。分けると、IDを順に試すだけで`403`と`404`の違いから他社の非公開の求人のIDを見分けられる。持ち主かどうかの判定は公開状態より先に行い、持ち主でなければ一律`404`にする。
+- 持ち主が操作するrouteと、持ち主以外が公開中のものを見るrouteは分ける（例: 企業側の`/api/company/job-postings/{jobPosting}`と求職者側の`/api/job-postings/{jobPosting}`）。同じpathの中でロールによって条件を分けると、片方の条件が抜けやすい。
+- 同じresourceのability（`view`・`update`・公開・終了・削除など）は、持ち主の判定を1つのprivate methodにまとめて共有する（abilityごとに書くと1つだけ漏れる）。
+- Vue側でボタンやrouteを隠すのは表示のためだけで、認可にはならない。他社のIDを直接指定したrequestを拒否するのはこのPolicyだけ。
+- 同じロールの別のuser（企業担当者なら別の企業の担当者）が持ち主の resource を指定したときに`404`になり、DBが変わらないことは、`ApiEndpointContractTest`が`RESOURCE_SCOPES`に`owner`と書いたendpointすべてについて横断で検査する（path parameterのあるauth routeは宣言が必須）。endpointごとのtestでも同じことを確認する。
 
 ##### 業務ルールと認可を分離する
 
@@ -721,7 +727,7 @@ $middleware->prependToPriorityList(
 | --- | --- |
 | 未ログイン | `401 unauthenticated` |
 | メール未確認 | `403 email_unverified`（存在しないIDを指定した場合も`404`にならないこと） |
-| 他人のデータ | 非公開データは`404 not_found`（存在しないIDと同じresponse）、公開データへの権限のない操作は`403 forbidden`。DBが変更されていないこと |
+| 他人のデータ | 持ち主以外（同じロールの別のuser・別の企業の担当者）の操作は、公開中のものも`404 not_found`（存在しないIDと同じresponse。空bodyでも`422`より前）。DBが変更されていないこと |
 | 本人のデータ | `2xx`と期待するresponse body |
 | ロール違い（ロールで利用を制限するAPI） | `403 forbidden` |
 | 業務ルール違反 | `409 conflict`（入力値の不正は`422 validation_failed`） |

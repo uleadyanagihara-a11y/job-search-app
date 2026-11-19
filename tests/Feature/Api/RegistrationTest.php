@@ -48,6 +48,28 @@ class RegistrationTest extends TestCase
         Event::assertDispatched(Registered::class, fn (Registered $e) => $e->user->email === 'test@example.com');
     }
 
+    public function test_user_with_the_same_email_created_after_validation_gets_409(): void
+    {
+        Notification::fake();
+
+        // validation の unique の後に、同時の登録・招待の受諾で同じ email の user が先に commit した。
+        $this->interleaveAfterQuery(
+            'from `users` where `email`',
+            fn () => User::factory()->create(['email' => 'test@example.com']),
+        );
+
+        $this->fromFrontend()->postJson('/api/auth/register', [
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ])->assertStatus(409)->assertJson(['code' => 'conflict']);
+
+        $this->assertDatabaseCount('users', 1);
+        $this->assertGuest('web');
+        Notification::assertNothingSent();
+    }
+
     public function test_registration_validates_input(): void
     {
         User::factory()->create(['email' => 'test@example.com']);

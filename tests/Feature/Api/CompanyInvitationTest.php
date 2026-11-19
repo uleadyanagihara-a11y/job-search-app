@@ -6,6 +6,7 @@ use App\Enums\Role;
 use App\Models\Company;
 use App\Models\CompanyInvitation;
 use App\Models\User;
+use Closure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Session;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -103,6 +104,67 @@ class CompanyInvitationTest extends TestCase
 
         $this->assertDatabaseCount('users', 1);
         $this->assertDatabaseCount('company_members', 1);
+    }
+
+    /**
+     * 最初の判定（登録済みの email の確認）が終わった後に、別の request が commit する。
+     */
+    private function interleaveAfterPrecheck(Closure $otherRequest): void
+    {
+        $this->interleaveAfterQuery('select exists(select * from `users`', $otherRequest);
+    }
+
+    private function assertNothingAccepted(int $users = 0): void
+    {
+        $this->assertDatabaseCount('users', $users);
+        $this->assertDatabaseCount('company_members', 0);
+        $this->assertNull(CompanyInvitation::query()->oldest('id')->firstOrFail()->accepted_at);
+        $this->assertGuest('web');
+    }
+
+    public function test_concurrent_accept_of_the_same_token_is_rejected_after_the_lock(): void
+    {
+        $token = CompanyInvitation::issue($this->company, self::EMAIL);
+
+        // 同じ token の受諾が先に commit した（user を作る部分は、招待の行の lock で待たされた後なので省く）。
+        $this->interleaveAfterPrecheck(fn () => CompanyInvitation::query()->update(['accepted_at' => now()]));
+
+        $this->fromFrontend()->postJson('/api/company-invitations/accept', $this->acceptInput($token))
+            ->assertStatus(422)
+            ->assertOnlyJsonValidationErrors(['token']);
+
+        $this->assertDatabaseCount('users', 0);
+        $this->assertDatabaseCount('company_members', 0);
+        $this->assertGuest('web');
+    }
+
+    public function test_token_reissued_during_accept_is_rejected_after_the_lock(): void
+    {
+        $token = CompanyInvitation::issue($this->company, self::EMAIL);
+
+        $this->interleaveAfterPrecheck(fn () => CompanyInvitation::issue($this->company, self::EMAIL));
+
+        $this->fromFrontend()->postJson('/api/company-invitations/accept', $this->acceptInput($token))
+            ->assertStatus(422)
+            ->assertOnlyJsonValidationErrors(['token']);
+
+        $this->assertNothingAccepted();
+        $this->assertDatabaseCount('company_invitations', 2);
+    }
+
+    public function test_user_with_the_same_email_created_during_accept_gets_409(): void
+    {
+        $token = CompanyInvitation::issue($this->company, self::EMAIL);
+
+        // 別の企業の招待の受諾や求職者の登録で、同じ email の user が先に commit した。
+        $this->interleaveAfterPrecheck(fn () => User::factory()->create(['email' => self::EMAIL]));
+
+        $this->fromFrontend()->postJson('/api/company-invitations/accept', $this->acceptInput($token))
+            ->assertStatus(409)
+            ->assertJson(['code' => 'conflict']);
+
+        $this->assertNothingAccepted(users: 1);
+        $this->assertSame(Role::Seeker, User::query()->sole()->role);
     }
 
     /**

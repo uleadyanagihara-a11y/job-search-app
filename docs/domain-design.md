@@ -46,10 +46,45 @@ M2 以降の実装はこの文書を基準にし、方針を変えるときは�
 
 **決定**: 確認済みの企業でも後から問題が起きた場合に備え、運営が artisan command で企業を停止・再開できるようにする（`companies.suspended_at`）。
 
-- 停止中の企業の求人は検索・詳細に出さず、新しい応募を受け付けない。
-- 停止中の企業の担当者はログインできない。既存の session は、停止の artisan command がその企業の担当者の `sessions` の行を削除して切る（`SESSION_DRIVER=database` 前提。driver を変えるときはここも見直す）。request ごとに停止状態を確認する middleware は作らない。
-- 同じ command で担当者の `remember_token` も作り直す（**必須**）。「ログイン状態を保持する」の cookie を持つ user は、session を消されても cookie から login API を通らずに再認証されるため、これを無効にしないと停止中の担当者が求職者の個人情報を見続けられる（`NewPasswordController` が password 再設定時に行っているのと同じ方法）。停止した担当者の session と remember cookie が無効になることを feature test で確認する。login を拒否するときの status・code は M2 の API 契約で決める。
-- 既存の応募とメッセージは消さない。求職者は自分の応募を引き続き読める。
+**原則（決定、2026-11-19）**: 停止は「凍結」として扱う。
+
+- 企業の側の人（担当者）は何もできない。
+- 企業の側のデータ（求人・応募・メッセージ）は消さず、`status` も変えない。停止中かどうかは毎回 `suspended_at` から判定するので、再開すれば停止前の状態に戻る。
+- 求職者ができるのは、自分のデータを読むことと、自分の側を閉じる操作（辞退）だけ。
+
+操作ごとの扱い（M3 以降の Milestone は、API 契約にこの表の status・code を写す）:
+
+| 誰が | 操作 | 停止中の扱い | 決めた・入れた時期 |
+| --- | --- | --- | --- |
+| 担当者 | login | password が正しければ `403 company_suspended`（誤りなら `422`） | M2（実装済み） |
+| 担当者 | ログイン中の全 API（プロフィール・password・アカウント削除・求人の管理・選考・メッセージなど、logout 以外） | `api.company.active` が logout して `403 company_suspended` | M2（実装済み）。M3 以降の API も業務 API の route group に入れるだけで止まる |
+| 担当者 | logout | できる（`204`） | M2（実装済み） |
+| 担当者 | メール確認のリンク（web callback） | 確認しない。logout して SPA の `/login?company_suspended=1` へ redirect する | 2026-11-19（実装済み） |
+| 担当者 | password 再設定（guest） | できる。再設定しても login させないため、停止中は login で止まる | M2（変更なし） |
+| 招待された人 | 招待の lookup・accept | `409 conflict`。運営の `company:invite` も停止中の企業には送らない | M2（実装済み） |
+| 運営 | 停止・再開 | `company:suspend` / `company:resume`。停止で求人・応募の `status` は変えない | M2（実装済み） |
+| 求職者 | 求人の検索 | 停止中の企業の求人は出さない | M4 |
+| 求職者 | 求人の詳細 | `404 not_found`（一覧と詳細で見える範囲を揃える。§5.5.5） | M4 |
+| 求職者 | 新しい応募 | `404 not_found`。詳細と同じにし、`409` で求人があることを知らせない | M5 |
+| 求職者 | 自分の応募の一覧・詳細 | 読める。求人のタイトルなどは応募の response に埋め込んで出し、求人の詳細へのリンクは出さない。企業が利用できるか（例 `company.is_active`）を返し、SPA は「この企業は現在利用できません」と出す（停止の理由は返さない） | M5 |
+| 求職者 | 辞退（`withdrawn`） | できる。企業には影響せず、求職者が自分の応募を整理できるため | M5 |
+| 求職者 | メッセージを読む・既読にする | できる。スレッドにも「この企業は現在利用できません」と出す（停止の理由が詐欺の場合に、求職者がメッセージの誘導を信じないようにするため） | M5.5 |
+| 求職者 | メッセージを送る | `409 conflict`。相手は読めず、停止中の担当者に通知メールも送らないため。`rejected` / `withdrawn` の応募で送れないのと同じ形 | M5.5 |
+| 求職者 | 未読件数 | 停止中の企業からの未読も数える（読めるため） | M5.5 |
+| — | 停止の前に queue に積まれた通知メール | 送る直前に、宛先の担当者の企業と、相手（送り手・応募先）の企業が停止中か確かめ、停止中なら送らない | M5 |
+
+- 求職者に見せる求人の条件（公開中・締切前・企業が停止していない）は `JobPosting` の 1 つの scope（例 `visibleToSeekers()`）にまとめ、検索・詳細・応募のすべてで使う（**決定**）。query ごとに条件を書くと、停止の条件を書き忘れやすいため。feature test では、表の求職者の行ごとに停止中の企業の場合を確かめる。
+- 応募と停止がほぼ同時に起きても lock はしない。停止の判定は `suspended_at` の 1 列だけで、許してしまうのは境目の一瞬の応募だけのため。
+- 再開したとき: 求人・応募・メッセージは停止前の状態に戻る（求人の `published_at` も変えないので、新着順の位置も停止前のまま）。期限内の招待はまた受諾できる。session と「ログイン状態を保持する」の cookie は戻らないので、担当者はログインし直す。
+
+詳細:
+
+- 停止中の企業の担当者はログインできない。ログイン中の担当者は、request ごとに停止状態を確認する middleware（`api.company.active`）で締め出す（**決定**、2026-11-16 変更）。停止中なら session を無効にして `403 company_suspended` を返す。ログイン済みの session は停止の後も残るが、この middleware があるので使えない。
+  - 当初は停止の artisan command が `sessions` の行を消し、middleware は作らない方針だった。変えた理由は 2 つ。`SESSION_DRIVER` が `database` 以外だと行の削除が何もしないまま成功し、締め出せないことに気づけない。login と停止が同時に起きると、停止前の状態で認証した login が、削除の後に session を書き込んで残り、以後は誰も確認しない。
+  - 対象は `auth:sanctum` の全 API（logout を除く）。付け忘れは `ApiEndpointContractTest` で検出する。企業担当者の request だけ、所属企業を読む query が増える。
+  - API ではない web route のメール確認 callback（`/auth/email/verify/…`、web の `auth` だけを通る）は、この middleware も `ApiEndpointContractTest` も対象にならない。そのため、停止の確認を controller（`VerifyEmailController`）の先頭に書く（2026-11-19）。web route を足すときは、同じ確認が要るかを考える。
+- 停止の command は担当者の `remember_token` も作り直す。「ログイン状態を保持する」の cookie からの再認証も上の middleware で止まるが、cookie 自体も無効にしておく（`NewPasswordController` が password 再設定時に行っているのと同じ方法）。login を拒否するときの status・code は M2 の API 契約で決める。
+- 既存の応募とメッセージは消さない。求職者は自分の応募を引き続き読める（上の表）。
 
 ## 3. エンティティ
 
@@ -124,6 +159,7 @@ applied ──▶ screening ──▶ interview ──▶ offered
 | 求職者プロフィール | 本人、その求職者から応募を受けた企業の担当者（求職者が辞退した応募しか無い企業は見られない） | `404 not_found` |
 | メッセージ | その応募の求職者本人、応募先企業の担当者 | `404 not_found` |
 
+- 他社の求人は、公開中でも企業側の API では `404 not_found`（**決定**、2026-11-19）。公開中だけ `403` にすると、ID を順に試して他社の非公開の求人の ID を見分けられるため。企業側（`/api/company/...`）と求職者側の route を分け、持ち主の判定は Policy の 1 つの private method にまとめる。SPA で編集ボタンを隠すのは表示のためだけで、拒否するのは API の Policy（§5.5.5「403と404の使い分け」）。
 - 企業に見せる求職者プロフィールは**最新の内容**にする（**決定**）。応募時点のスナップショットは持たない。
 - 企業に求職者の連絡先（メールアドレス等）は見せない（**決定**）。やり取りは「6. メッセージ」で行い、連絡先を伝えたい求職者は自分でメッセージに書く。
 
@@ -135,7 +171,7 @@ applied ──▶ screening ──▶ interview ──▶ offered
 - 送れるのは文章だけ（2000 文字まで、超えたら `422`）。添付ファイル、送信後の編集・削除はできない。
 - 送信 API には throttle を付ける（値は M5.5 で確定）。
 - 本文中の URL は自動でリンクにしない（企業を装ったフィッシングへの誘導を防ぐため）。
-- 応募が `rejected` / `withdrawn` になったら、読めるが送れない（`409 conflict`）。
+- 応募が `rejected` / `withdrawn` になったら、読めるが送れない（`409 conflict`）。応募先の企業が停止中のときも同じ（2 章「企業の停止」）。
 - WebSocket も定期的な取り直し（polling）も使わない。スレッド画面を開いたとき・送信したとき・「更新」ボタンを押したときだけ取得する。新着は通知メールとナビゲーションの未読件数で知らせる。
 - ナビゲーションの未読件数は画面遷移のときに取得し、定期的には取り直さない。集計のため `application_messages(application_id, id)` に index を張る。
 - 既読はユーザーごと（`application_message_reads`: `application_id`, `user_id`, `last_read_message_id`）。MVP では 1 社の担当者は実質 1 人だが、後から担当者を複数にするときに作り直さないため。
@@ -145,7 +181,7 @@ API:
 
 | method / path | 用途 |
 | --- | --- |
-| `GET /api/applications/{application}/messages` | 新しい順に最大 100 件程度を取得（pagination は件数が増えてから入れる。上限は M5.5 で確定） |
+| `GET /api/applications/{application}/messages` | 新しい順に最大 100 件程度を取得（pagination は件数が増えてから入れる。上限は M5.5 で確定。response の形は先に決める。15 章） |
 | `POST /api/applications/{application}/messages` | 送信 |
 | `PUT /api/applications/{application}/messages/read` | 既読にする（GET に副作用を持たせない） |
 | `GET /api/unread-counts` | ナビゲーションの未読件数 |
@@ -175,8 +211,8 @@ API:
 
 - 条件: キーワード（タイトル・本文の LIKE）、都道府県、雇用形態、給与（単位と下限の組。異なる単位どうしは換算せず、同じ単位の求人だけを比べる）。
 - 停止中の企業の求人は出さない。
-- キーワードの LIKE（`%…%`）は index が効かないが、MVP の規模では許容する。公開状態・締切・停止の条件を同じ query の where で先に絞り、遅くなったら Meilisearch へ移す。
-- 並び順: 新着順。
+- キーワードの LIKE（`%…%`）は index が効かないが、MVP の規模では許容する。公開状態・締切・停止の条件を同じ query の where で先に絞り、遅くなったら FULLTEXT（ngram）を試し、それでも足りなければ Meilisearch へ移す（15 章）。
+- 並び順: 新着順（`published_at DESC, id DESC`。一意にする理由は 15 章）。
 - pagination あり。一覧と詳細で見える範囲を揃える（§5.5.5）。件数（`per_page`）には上限を設ける（業務 API の一覧すべて同じ）。
 - キーワードの `%`・`_`・`\` はエスケープしてから LIKE に渡す（ワイルドカードとして効かないようにする）。
 - Meilisearch（Scout）は入れない。検索を強化するときに、職種マスタと一緒に検討する。
@@ -203,6 +239,7 @@ MVP 後の優先度は、お気に入り → 担当者の招待画面 → 選考
 | M1.5 | 11/16〜11/20 | Tailwind CSS 4 への移行と、デザインを差し替えやすくする土台（「12. デザイン」）（完了） |
 | M1.6 | 11/23〜11/27 | 日本語化（「14. 日本語化」）（完了） |
 | M2 | 11/30〜12/11 | 求職者プロフィールの編集画面、複数ロールの E2E helper、M2 の最後に CLAUDE.md のコーディング規約の追記、`users.role`、`companies`・`company_members`・招待（artisan、招待受諾画面）、`seeker_profiles`、最初の Policy、`api.verified` の priority 変更、ロールによる画面の振り分け、`/api/user` への `role` の追加、企業の停止、E2E 用 seeder、開発用 seeder（`DatabaseSeeder`。以降の Milestone で求人・応募・メッセージを足していく）（完了） |
+| M2.5 | M2 完了後〜12/11 | デザイン素材の選定（Login と求人一覧の 2 画面で試作して比較）と、既存画面への適用（「12. デザイン」） |
 | M3 | 12/14〜12/25 | 企業の求人管理と企業情報の編集（API・画面） |
 | — | 12/28〜1/04 | 年末年始 |
 | M4 | 1/05〜1/15 | 求職者の求人検索・一覧・詳細 |
@@ -212,7 +249,7 @@ MVP 後の優先度は、お気に入り → 担当者の招待画面 → 選考
 
 ロール別の dashboard の中身（例: 求職者には応募中の件数と未読、企業には新しい応募と公開中の求人）は M5.5 で決める。
 
-デザイン素材の選定と適用は M2 で作る画面が揃った後に行い、時期は M3 以降で決める（「12. デザイン」）。
+デザイン素材の選定と適用は M2.5 で行う（**決定**。M3 以降の画面を最初から素材で作り、後から差し替える画面を減らすため）（「12. デザイン」）。
 
 ### 進め方: API 契約を先に書く
 
@@ -225,7 +262,7 @@ MVP 後の優先度は、お気に入り → 担当者の招待画面 → 選考
 
 ## 12. デザイン
 
-**決定**: 見た目は後から無料のデザイン素材（Tailwind の部品集、daisyUI、shadcn-vue など）に差し替える前提で作る。素材はまだ選ばない。
+**決定**: 見た目は後から無料のデザイン素材（Tailwind の部品集、daisyUI、shadcn-vue など）に差し替える前提で作る。素材は M2.5 で選ぶ。
 
 ### Tailwind CSS 4 への前倒し（M1.5）
 
@@ -251,7 +288,8 @@ MVP 後の優先度は、お気に入り → 担当者の招待画面 → 選考
 
 ### 素材の選び方と取り込み方
 
-- M2 の画面が揃った後、候補 2〜3 個で Login と求人一覧の 2 画面を試作して比べる。
+- M2.5 で、候補 2〜3 個で Login と求人一覧の 2 画面を試作して比べる。求人一覧はまだ無い（M4）ため、仮のデータを置いた試作用の画面で比べる（試作用の画面は採用後に消し、M4 の画面は選んだ素材で作り直す）。
+- 採用した素材は、M2.5 のうちに既存の画面（認証・profile・求職者プロフィール・招待受諾）と `frontend/src/components/` の部品に適用する。M3 以降の画面は最初から素材で作る。
 - 開閉などの動きは既存の Vue 部品（`Dropdown`、`Modal` など）に任せ、素材の独自 JS（Flowbite・Preline の素の JS など）は入れない。素材の HTML を移すときも、既存の部品が付けている `aria` 属性を残す（role/label で探す test が確認する）。
 - 独自の CSS を持ち Tailwind の preflight とぶつかりやすい UI ライブラリ（Vuetify、Quasar など）は採らない。
 - 取り込んだ素材は、出典・version・ライセンスを記録する（記録先は採用時に決める）。有料版の無料サンプル、Figma Community のファイル、写真・イラストは、ライセンスを個別に確認する。
@@ -271,6 +309,7 @@ MVP 後の優先度は、お気に入り → 担当者の招待画面 → 選考
 - セキュリティ（M6 で用意する）:
   - nginx のセキュリティヘッダ: CSP、`X-Content-Type-Options: nosniff`、`frame-ancestors`（または `X-Frame-Options`）、HSTS。`Referrer-Policy` は M0 で入れ済みのものを production 構成にも入れる
   - cookie: `SESSION_SECURE_COOKIE=true`。`SESSION_ENCRYPT`（現在 `false`）をどうするか決める
+- SPA の auth store（M6 までに決める）: プロフィール更新の response を `setUser` で反映する処理は、送信中に logout されると user を復活させる（取得系の通信は世代番号で防いでいる。`frontend/src/stores/auth.ts`）。送信前の世代と照合して捨てるか、このまま許容するかを決める（起きるのは保存の直後に logout したときだけで、server の session は無効なので次の API の 401 で戻る）。`setUser` を通信の完了後に呼ぶ書き込みを足すときは、それより前に決める。
 
 ## 14. 日本語化（M1.6）
 
@@ -295,3 +334,44 @@ MVP 後の優先度は、お気に入り → 担当者の招待画面 → 選考
 - 訳が読まれていることは `tests/Feature/LocalizationTest.php`（validation・login・reset・メール 2 種）で確かめる。
 - Laravel 同梱の英語（`auth`・`pagination`・`passwords`・`validation`）にある key が `lang/ja` にもあることを `tests/Unit/TranslationKeysTest.php` で確かめる。Laravel の更新で rule が増えると、Dependabot の PR の CI で落ちる。
 - 日本語は単語の途中でも折り返すため、320px 幅で「パスワードを再／設定」のようにボタンの文字が 2 行になっていた。ボタンの部品（`PrimaryButton`・`SecondaryButton`・`DangerButton`）に `whitespace-nowrap` を付け、ボタンを並べる行は `flex-wrap` で行ごと折り返すようにした。ボタンの `text-xs uppercase tracking-widest`（Breeze 由来の英語向けの指定）は、デザイン素材の選定時に見直す。
+
+## 15. データ量と性能（M3〜M5.5）
+
+求人が 10 件では速くても、10 万件で遅くなる・ページ送りがずれることがある。一覧を持つ API を足す Milestone で、次を契約と test に入れる（2026-11-19 検討）。
+
+M2 の時点では一覧の API が無く、N+1 は無い。`api.company.active` の `companyMember->company` の lazy load は request ごとに一定の回数で、件数に比例しないため問題にしない。M2 のテーブルの index（`company_members.user_id` の unique、`company_invitations` の `email`・`token_hash`、FK の列）は足りている。
+
+### 並び順とページ送り
+
+- 一覧の並び順は、一意になるよう最後に `id` を足す（**決定**）。求人の新着順は `published_at DESC, id DESC`。`published_at` は重なることがあり（再開した企業の求人は `published_at` を変えずに戻る。2 章）、一意でないとページをまたいで同じ求人が 2 回出たり、どのページにも出なかったりする。
+- 一覧の API は最初からページ送りにする。求人検索（9 章）だけでなく、企業側の求人一覧（M3）・応募の一覧（M5）も同じ。`per_page` の上限は全一覧で同じ値にし、超えたときに `422` にするか上限に切り詰めるかは M3 の契約で決める。
+- `paginate()` は毎回 `COUNT(*)` を実行し、キーワードの LIKE があると同じ条件の走査が 2 回になる。総件数を画面に出すかを M4 の契約で決め、出さないなら `simplePaginate()`（次のページの有無だけ）にする。
+- MVP は OFFSET 方式でよい。後ろのページが遅くなったら `cursorPaginate()` に移す（並び順が一意なら移せる）。
+- メッセージの一覧（6 章）は MVP では 1 ページだけ返すが、後からページ送りを足しても SPA を直さずに済むよう、response の形（`data` と `meta` 等）は M5.5 の契約で最初から決めておく。
+
+### index
+
+実装する Milestone で `EXPLAIN` を見て確定する（3 章）。候補:
+
+| テーブル | index | 使う query |
+| --- | --- | --- |
+| `job_postings` | `(status, published_at, id)` | 求職者の検索（公開中を新着順）。都道府県・雇用形態は件数を見てから足す（足しすぎると書き込みが遅くなる） |
+| `job_postings` | `company_id`（FK） | 企業側の求人一覧 |
+| `applications` | unique(`job_posting_id`, `user_id`) | 企業側の求人ごとの応募一覧 |
+| `applications` | `user_id`（FK）。新着順にするなら `(user_id, applied_at)` | 求職者の自分の応募一覧 |
+| `application_messages` | `(application_id, id)` | スレッドの取得と未読件数（6 章で決定済み） |
+
+- 停止の条件（`visibleToSeekers()`）は `companies` との EXISTS か JOIN になる。`companies` は件数が少なく主キーで引くため、どちらでもよい。
+- キーワードの `%…%` は index が効かない（9 章で許容）。遅くなったときは、Meilisearch の前に MySQL の FULLTEXT index（`ngram` parser。日本語を扱え、service を足さずに済む）を試す。
+
+### N+1
+
+- 開発・test では `Model::preventLazyLoading(! app()->isProduction())` を `AppServiceProvider` に入れ、一覧で `with()` を書き忘れると例外にする。Eloquent は 2 件以上まとめて取得した model の lazy load だけを止めるため、1 件の lazy load（`api.company.active` 等）は止まらない。
+- 一覧の endpoint ごとに、2 件と 20 件で query の回数が同じことを feature test で確かめる（`DB::getQueryLog()` で数える）。`preventLazyLoading` では、Resource の中で行ごとに `count()` 等を呼ぶ query を拾えないため。
+- N+1 になりやすい所: 求人一覧の企業名（`jobPosting.company`）、応募の一覧（`application.jobPosting.company`、企業側は `application.user.seekerProfile`）、求職者の応募一覧の `company.is_active`、応募ごとの未読件数（`withCount` か `GROUP BY` で 1 回の query にする）。
+
+### 大量データでの確認（M4 の終わり）
+
+- local 専用の seeder（`RunsOnlyInLocalEnvironments`）で求人 10 万件・企業 1,000 社・応募数十万件を入れ、検索の query を `EXPLAIN` で見る（`type: ALL` の全件走査や `Using filesort` が無いか）。CI では動かさない。
+- 開発環境では `DB::whenQueryingForLongerThan()` で遅い request を log に出す（MySQL の slow query log は `compose.yaml` の `command` の変更とコンテナの再作成が要るため使わない）。
+- ここでキーワード検索の速さが許容できるかを判断し、FULLTEXT へ移すかを決める。

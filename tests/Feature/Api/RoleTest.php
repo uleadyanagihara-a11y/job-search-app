@@ -94,4 +94,45 @@ class RoleTest extends TestCase
         $this->assertGuest('web');
         $this->assertSame(1, RateLimiter::attempts($user->email.'|127.0.0.1'));
     }
+
+    public function test_logged_in_member_is_locked_out_when_company_is_suspended(): void
+    {
+        // api.company.active（M2.2）。ログイン中に停止されたら、次の request で締め出す。
+        $company = Company::factory()->create();
+        $member = User::factory()->companyMember($company)->create();
+
+        $this->actingAs($member)->fromFrontend()->getJson('/api/user')->assertOk();
+
+        $company->forceFill(['suspended_at' => now()])->save();
+
+        // 実際の request は user を毎回 DB から読むため、前の request で読んだ relation を持ち越さない。
+        $this->actingAs($member->fresh())->fromFrontend()->getJson('/api/user')
+            ->assertForbidden()
+            ->assertJson(['code' => 'company_suspended']);
+        $this->assertGuest('web');
+    }
+
+    public function test_unverified_member_of_suspended_company_gets_company_suspended_first(): void
+    {
+        // api.company.active は api.verified より前に動く（M2.4）。
+        $member = User::factory()->unverified()->companyMember(Company::factory()->suspended()->create())->create();
+
+        $this->actingAs($member)->fromFrontend()->getJson('/api/seeker-profile')
+            ->assertForbidden()
+            ->assertJson(['code' => 'company_suspended']);
+    }
+
+    public function test_member_of_suspended_company_can_still_logout(): void
+    {
+        $member = User::factory()->companyMember(Company::factory()->suspended()->create())->create();
+
+        $this->actingAs($member)->fromFrontend()->postJson('/api/auth/logout')->assertNoContent();
+        $this->assertGuest('web');
+    }
+
+    public function test_seeker_and_member_of_active_company_are_not_affected(): void
+    {
+        $this->actingAs(User::factory()->create())->fromFrontend()->getJson('/api/seeker-profile')->assertOk();
+        $this->actingAs(User::factory()->companyMember()->create())->fromFrontend()->getJson('/api/profile')->assertOk();
+    }
 }

@@ -60,6 +60,12 @@ describe('fetchUser', () => {
         expect(handler).not.toHaveBeenCalled();
     });
 
+    it('所属企業の停止（403 company_suspended）は server が logout 済みなので null を返す', async () => {
+        stubFetch(() => jsonResponse(403, { code: 'company_suspended', message: 'この企業アカウントは現在利用できません。' }));
+
+        await expect(authApi.fetchUser()).resolves.toBeNull();
+    });
+
     it('401 以外の失敗はそのまま投げる', async () => {
         stubFetch(() => jsonResponse(500, { code: 'server_error', message: 'Server Error' }));
 

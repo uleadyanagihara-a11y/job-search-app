@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import * as authApi from '@/api/auth';
+import AlertMessage from '@/components/AlertMessage.vue';
 import Checkbox from '@/components/Checkbox.vue';
 import InputError from '@/components/InputError.vue';
 import InputLabel from '@/components/InputLabel.vue';
@@ -16,11 +17,14 @@ const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 
-const { data, errors, error, processing, submit, reset } = useApiForm({
-    email: '',
-    password: '',
-    remember: false,
-});
+const { data, errors, error, processing, submit, reset } = useApiForm(
+    {
+        email: '',
+        password: '',
+        remember: false,
+    },
+    { fieldsWithoutError: ['remember'] },
+);
 
 // 旧 props の `status`（flash）は、reset-password 成功時に router の history state で受け取る（§5.2）。
 const passwordResetStatus = (() => {
@@ -31,6 +35,10 @@ const passwordResetStatus = (() => {
 
 // 未ログインでメール認証リンクを開くと、Laravel の callback がここへ送る（§5.4）。
 const verificationRequired = computed(() => route.query.verification_required === '1');
+
+// ログイン中（起動時の GET /api/user を含む）に所属企業が停止されていると、ここへ送られる（src/router/apiErrorHandlers.ts）。
+// login を試して API の error が出たら、そちらの alert だけにする。
+const companySuspended = computed(() => route.query.company_suspended === '1' && !error.value);
 
 async function onSubmit(): Promise<void> {
     await submit(authApi.login, {
@@ -61,6 +69,13 @@ async function onSubmit(): Promise<void> {
         >
             メールアドレスの確認を完了するには、ログインしてください。
         </div>
+
+        <AlertMessage
+            v-if="companySuspended"
+            class="mb-4"
+        >
+            この企業アカウントは現在利用できません。運営にお問い合わせください。
+        </AlertMessage>
 
         <p
             v-if="error"

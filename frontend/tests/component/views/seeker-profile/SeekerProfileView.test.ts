@@ -78,6 +78,18 @@ describe('SeekerProfileView', () => {
         expect(vi.mocked(seekerProfileApi.updateSeekerProfile).mock.lastCall?.[0].desired_prefecture).toBeNull();
     });
 
+    it('form に無い field の 422 は、何も出さずに終わらず alert に出す', async () => {
+        vi.mocked(seekerProfileApi.updateSeekerProfile).mockRejectedValue(
+            validationError({ prefecture: ['希望勤務地は、正しい値を選択してください。'] }),
+        );
+        const wrapper = await mountView();
+
+        await wrapper.get('form').trigger('submit');
+        await flushPromises();
+
+        expect(wrapper.get('[role="alert"]').text()).toContain('希望勤務地は、正しい値を選択してください。');
+    });
+
     it('422 は field の下に出し、aria-invalid を付ける', async () => {
         vi.mocked(seekerProfileApi.updateSeekerProfile).mockRejectedValue(
             validationError({ self_pr: ['自己 PRは、2000文字以下で指定してください。'] }),

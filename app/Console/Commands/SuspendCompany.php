@@ -11,15 +11,15 @@ use Illuminate\Support\Str;
 /**
  * 企業を停止する（docs/domain-design.md 2 章「企業の停止」、docs/domain-api-contract.md M2.5）。
  *
- * request ごとに停止状態を確かめる middleware は作らないため、ここで担当者を確実に締め出す:
- * - `sessions` の行を消す（SESSION_DRIVER=database 前提。driver を変えるときはここも見直す）
- * - `remember_token` を作り直す（「ログイン状態を保持する」の cookie で再認証されないようにする）
+ * ログイン中の担当者は、request ごとに停止状態を確かめる `api.company.active` が締め出すため、
+ * `sessions` の行は消さない（session の driver に依存しない）。
+ * 「ログイン状態を保持する」の cookie も無効にするため、`remember_token` は作り直す。
  */
 class SuspendCompany extends Command
 {
     protected $signature = 'company:suspend {company : 企業の id}';
 
-    protected $description = '企業を停止し、担当者の session と remember cookie を無効にする';
+    protected $description = '企業を停止し、担当者の remember cookie を無効にする（ログイン中の担当者は次の request で締め出される）';
 
     public function handle(): int
     {
@@ -36,8 +36,6 @@ class SuspendCompany extends Command
             $company->save();
 
             $userIds = $company->members()->pluck('user_id');
-
-            DB::table('sessions')->whereIn('user_id', $userIds)->delete();
 
             User::query()->whereKey($userIds)->each(function (User $user) {
                 $user->setRememberToken(Str::random(60));

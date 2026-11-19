@@ -8,7 +8,9 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
@@ -27,7 +29,14 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($request->validated('password')),
             'role' => Role::Seeker,
         ]);
-        $user->save();
+
+        // validation の unique は事前チェックにすぎず、同時の登録・招待の受諾では抜けるため、
+        // `users.email` の unique 制約を正として 409 にする（docs/domain-api-contract.md M2.2、§5.5.5）。
+        try {
+            $user->save();
+        } catch (UniqueConstraintViolationException) {
+            abort(Response::HTTP_CONFLICT);
+        }
 
         event(new Registered($user));
 

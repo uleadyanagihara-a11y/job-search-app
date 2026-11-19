@@ -173,8 +173,18 @@ minor・patch はエコシステムごとに 1 PR にまとめ、major は個別
 ### API（Laravel）
 
 - 業務 API は実装の前に `docs/domain-api-contract.md` に契約を書く。endpoint・status・code を変えるときは先に契約を直す。
-- 業務 API の route は `routes/api.php` の `Route::middleware(['auth:sanctum', 'api.verified'])->group()` に入れる。`api.verified` は priority で route binding より前に動く（`SeekerProfileTest` で順序を検査）。
+- 業務 API の route は `routes/api.php` の `Route::middleware(['auth:sanctum', 'api.company.active', 'api.verified'])->group()` に入れる。`api.company.active` → `api.verified` の順に、priority で route binding より前に動く（`SeekerProfileTest` で順序を検査）。
+  `auth:sanctum` を付ける route には、logout 以外すべてに `api.company.active`（停止中の企業の担当者を毎回締め出す）も付ける。付け忘れは `ApiEndpointContractTest` が検出する。
   新しい API route を足したら `tests/Feature/Api/ApiEndpointContractTest.php` の `ENDPOINTS` にも足す（無いと落ちる）。
+  `auth:sanctum` の route は `roles` に使えるロールを書く。無いロールは `403 forbidden`、あるロールは 401・403 にならないことを全ロールで検査する
+  （`UserFactory` の既定が seeker のため、endpoint ごとの test だけだと企業担当者の場合を書き忘れやすい）。
+  path parameter（`{job}` 等）のある route を足したら、同じ test の `resourceFor()` にその resource の作り方を足す（無いと落ちる）。
+  ロール違いを `404 not_found` で拒否する endpoint（他人の非公開 resource）は `ROLE_DENIED_AS_NOT_FOUND` に書く。
+  path parameter のある route は、同じ test の `RESOURCE_SCOPES` に `owner`（持ち主以外は公開中でも `404`。他社の求人の編集など）か `public` を書く（無いと落ちる）。
+  `owner` は、同じロールの別の user（担当者なら別の企業）からの request が `404`・存在しない id と同じ body・DB 不変になることを横断で検査する。
+  SPA でボタンを隠すのは認可にならない。持ち主の判定は Policy の 1 つの private method にまとめ、ability ごとに書かない。
+- 企業の停止中に各操作をどう扱うかは、`docs/domain-design.md` 2 章「企業の停止」の表に従う。M3 以降の契約にはその status・code を写す。
+  求職者に見せる求人の条件（停止中の企業を除く）は `JobPosting` の 1 つの scope にまとめる。`api.company.active` が効かない web route（メール確認の callback 等）では、controller で停止を確認する。
 - controller は `app/Http/Controllers/Api/`（認証まわりは `Api/Auth/`）、action 名は `show`/`update`/`store`/`destroy` 等の resource 名。response は `JsonResource`（`app/Http/Resources/`）で返し、日時は `->clone()->utc()->format('Y-m-d\TH:i:s\Z')`、nullable は `null` で返して field の有無を変えない。
 - 認可は Policy（`app/Policies/`）にまとめ、呼び出しは controller の `Gate::authorize()` か route の `can:` の 1 か所。ロールの判定も Policy に書き、middleware にしない。
   FormRequest を引数で受けると認可より先に validation が動くため、ロール違いを `403` にしたい API では `Gate::authorize()` の後に `app(XxxRequest::class)` で解決する（`SeekerProfileController`）。
@@ -188,6 +198,11 @@ minor・patch はエコシステムごとに 1 PR にまとめ、major は個別
 
 - API の呼び出しは `src/api/<resource>.ts` に関数で置き、response は `src/types/api.ts` の型 guard（`isXxxResponse`）を `expectShape()` に通してから型を付ける。field を足したら guard も直す。
 - form は `useApiForm`。入力欄は文字列で持ち、API の型（`null`・数値）への変換は送る直前に行う。
+  422 の key は data の key と一致したものだけ field の下に出し、それ以外（field 名のずれ、配列の `items.0` 等）は `error`（form 上部の alert）に回す。
+  data にあっても field の下に error を出さない key（Login の `remember`）は `fieldsWithoutError` に書く。
+- component test の 422 は `validationError()` で key を手で書くため、本物の Laravel と key がずれても通る。
+  新しい form には、実サーバで 422 を 1 件以上出して field の下に表示されることを確かめる E2E を書く（配列の field があれば、その key でも 1 件）。
+  全 field の validation は Laravel の Feature test（`assertJsonValidationErrors`）で確かめ、E2E には重ねない。
 - 取得してから form を初期化する画面は、view が読み込み・失敗・再読み込みを持ち、form は取得した値を props で受ける子 component にする（`ProfileView`・`SeekerProfileView`）。
 - route の `meta.roles` で表示するロールを絞る（合わなければ guard が dashboard へ送る）。nav の項目にも同じ `roles` を書く。データの保護は API の Policy が担う。
 - view・component の名前は 2 語以上（ESLint の `vue/multi-word-component-names`）。画面は `src/views/<画面>/XxxView.vue`、画面専用の部品は同じ directory に置く。

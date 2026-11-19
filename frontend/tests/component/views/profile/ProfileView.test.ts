@@ -54,6 +54,20 @@ describe('ProfileView', () => {
         expect(wrapper.text()).toContain('メールアドレスが確認されていません。');
     });
 
+    it('読み込み中に logout 等で auth store が破棄されたら、古い response で user を戻さない', async () => {
+        useAuthStore().setUser(verifiedUser);
+        let resolve: (value: typeof verifiedUser) => void = () => {};
+        vi.mocked(profileApi.fetchProfile).mockReturnValue(new Promise((r) => (resolve = r)));
+
+        const { wrapper } = await mountAt(ProfileView, '/profile');
+        useAuthStore().clear();
+        resolve(verifiedUser);
+        await flushPromises();
+
+        expect(useAuthStore().user.value).toBeNull();
+        expect(wrapper.find('#name').exists()).toBe(false);
+    });
+
     it('読み込みに失敗したら alert を出し、再読み込みで form を表示する', async () => {
         useAuthStore().setUser(verifiedUser);
         vi.mocked(profileApi.fetchProfile)

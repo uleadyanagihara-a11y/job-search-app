@@ -13,7 +13,9 @@ use App\Http\Controllers\Api\SeekerProfileController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/user', [UserController::class, 'show'])->middleware('auth:sanctum');
+// auth:sanctum の route には、logout を除き api.company.active を付ける（停止中の企業の担当者を締め出す。
+// docs/domain-api-contract.md M2.2）。付け忘れは ApiEndpointContractTest が検出する。
+Route::get('/user', [UserController::class, 'show'])->middleware(['auth:sanctum', 'api.company.active']);
 
 // api.session を付けた route は session（Cookie）認証専用で、token 認証では 400 になる。
 // api.guest / api.session は $middlewarePriority に無いため、この 2 つの間の実行順は記述順で決まる
@@ -24,6 +26,7 @@ Route::post('/auth/register', [RegisteredUserController::class, 'store'])
 Route::post('/auth/login', [AuthenticatedSessionController::class, 'store'])
     ->middleware(['throttle:auth.login', 'api.guest', 'api.session']);
 
+// logout は停止中の企業の担当者でもできるよう、api.company.active を付けない。
 Route::post('/auth/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware(['auth:sanctum', 'api.session']);
 
@@ -42,32 +45,32 @@ Route::post('/auth/reset-password', [NewPasswordController::class, 'store'])
     ->middleware(['api.guest', 'throttle:auth.reset-password']);
 
 Route::post('/auth/email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
-    ->middleware(['auth:sanctum', 'throttle:auth.verification-notification']);
+    ->middleware(['auth:sanctum', 'api.company.active', 'throttle:auth.verification-notification']);
 
 Route::post('/auth/confirm-password', [ConfirmablePasswordController::class, 'store'])
-    ->middleware(['auth:sanctum', 'throttle:auth.confirm-password', 'api.session']);
+    ->middleware(['auth:sanctum', 'api.company.active', 'throttle:auth.confirm-password', 'api.session']);
 
-Route::get('/profile', [ProfileController::class, 'show'])->middleware('auth:sanctum');
+Route::get('/profile', [ProfileController::class, 'show'])->middleware(['auth:sanctum', 'api.company.active']);
 
 // email を変えるときに現在の password を照合するため、confirm-password と limiter を共有する
 // （docs/domain-api-contract.md M2.2）。
 Route::patch('/profile', [ProfileController::class, 'update'])
-    ->middleware(['auth:sanctum', 'throttle:auth.confirm-password']);
+    ->middleware(['auth:sanctum', 'api.company.active', 'throttle:auth.confirm-password']);
 
 // password 更新と account 削除は body の現在 password で本人確認するため
 // api.password.confirm を重ねない（docs/inertia-removal-migration.md §5.5.2）。
 // 現在 password の総当たりを防ぐため、同じく password を照合する confirm-password と
 // limiter を共有し、3 endpoint の合計で数える。
 Route::delete('/profile', [ProfileController::class, 'destroy'])
-    ->middleware(['auth:sanctum', 'throttle:auth.confirm-password', 'api.session']);
+    ->middleware(['auth:sanctum', 'api.company.active', 'throttle:auth.confirm-password', 'api.session']);
 
 Route::put('/profile/password', [PasswordController::class, 'update'])
-    ->middleware(['auth:sanctum', 'throttle:auth.confirm-password']);
+    ->middleware(['auth:sanctum', 'api.company.active', 'throttle:auth.confirm-password']);
 
 // --- 業務 API（docs/domain-api-contract.md）---
-// すべて auth:sanctum と api.verified を付ける。api.verified は bootstrap/app.php の priority で
+// すべて auth:sanctum・api.company.active・api.verified を付ける。api.verified は bootstrap/app.php の priority で
 // SubstituteBindings より前に動く（§5.5.5「middleware の実行順」）。
-Route::middleware(['auth:sanctum', 'api.verified'])->group(function () {
+Route::middleware(['auth:sanctum', 'api.company.active', 'api.verified'])->group(function () {
     Route::get('/seeker-profile', [SeekerProfileController::class, 'show']);
     Route::put('/seeker-profile', [SeekerProfileController::class, 'update']);
 });

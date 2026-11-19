@@ -43,7 +43,8 @@ class CompanyInvitationController extends Controller
     /**
      * POST /api/company-invitations/accept。
      *
-     * 同時に 2 回受諾されても user が 2 人できないよう、招待の行を lock して使用済みかを確かめ直す。
+     * 同時に 2 回受諾されても user が 2 人できないよう、招待の行を lock して token の判定をやり直す
+     * （最初の判定の後に、同じ token の受諾・送り直し・期限切れが起きていたら 422）。
      * 招待後に同じ email で求職者登録された場合などは、`users.email` の unique 制約を正として 409 にする（§5.5.5）。
      */
     public function accept(InvitationAcceptRequest $request): JsonResponse
@@ -54,7 +55,8 @@ class CompanyInvitationController extends Controller
             $user = DB::transaction(function () use ($invitation, $request) {
                 $locked = CompanyInvitation::query()->whereKey($invitation->id)->lockForUpdate()->firstOrFail();
 
-                if ($locked->accepted_at !== null) {
+                // scopeUsable と同じ条件（token_hash は whereKey で一致済み）。
+                if ($locked->accepted_at !== null || $locked->expires_at->lte(now())) {
                     throw $this->invalidToken();
                 }
 

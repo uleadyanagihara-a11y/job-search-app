@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Http\Middleware\ThrottleEmailVerificationCallback;
+use App\Models\Company;
 use App\Models\User;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Auth\Middleware\Authenticate;
@@ -373,6 +374,40 @@ class EmailVerificationTest extends TestCase
         );
 
         $this->get($redirectTo)->assertRedirect(self::FRONTEND_URL.'/dashboard?verified=1');
+        $this->assertTrue($user->fresh()->hasVerifiedEmail());
+    }
+
+    public function test_member_of_suspended_company_is_logged_out_without_verifying(): void
+    {
+        // 停止の前にメールアドレスを変え、確認リンクを開く前に企業が停止された担当者（session は残っている）。
+        $user = User::factory()->unverified()->companyMember(Company::factory()->suspended()->create())->create();
+
+        Event::fake();
+
+        $response = $this->actingAs($user)->get($this->verificationUrl($user));
+
+        $response->assertRedirect(self::FRONTEND_URL.'/login?company_suspended=1');
+        $this->assertGuest();
+        $this->assertFalse($user->fresh()->hasVerifiedEmail());
+        Event::assertNotDispatched(Verified::class);
+    }
+
+    public function test_member_of_suspended_company_is_logged_out_before_user_mismatch_check(): void
+    {
+        $user = User::factory()->companyMember(Company::factory()->suspended()->create())->create();
+        $other = User::factory()->unverified()->create();
+
+        $this->actingAs($user)->get($this->verificationUrl($other))
+            ->assertRedirect(self::FRONTEND_URL.'/login?company_suspended=1');
+        $this->assertGuest();
+    }
+
+    public function test_member_of_active_company_can_verify(): void
+    {
+        $user = User::factory()->unverified()->companyMember()->create();
+
+        $this->actingAs($user)->get($this->verificationUrl($user))
+            ->assertRedirect(self::FRONTEND_URL.'/dashboard?verified=1');
         $this->assertTrue($user->fresh()->hasVerifiedEmail());
     }
 

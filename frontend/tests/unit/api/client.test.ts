@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { apiRequest, isApiError, onPasswordConfirmationRequired, onUnauthenticated } from '@/api/client';
+import {
+    apiRequest,
+    isApiError,
+    onCompanySuspended,
+    onPasswordConfirmationRequired,
+    onUnauthenticated,
+} from '@/api/client';
 
 function jsonResponse(status: number, body: unknown): Response {
     return new Response(JSON.stringify(body), {
@@ -91,6 +97,33 @@ describe('apiRequest', () => {
         const error = await catchApiError(apiRequest('GET', '/profile'));
         expect(error.code).toBe('unauthenticated');
         expect(handler).toHaveBeenCalledOnce();
+    });
+
+    it('403 company_suspended は onCompanySuspended の handler を呼ぶ。allowUnauthenticated でも呼ぶ', async () => {
+        const handler = vi.fn();
+        onCompanySuspended(handler);
+        vi.stubGlobal(
+            'fetch',
+            vi.fn<typeof fetch>(async () =>
+                jsonResponse(403, { code: 'company_suspended', message: 'この企業アカウントは現在利用できません。' }),
+            ),
+        );
+
+        const error = await catchApiError(apiRequest('GET', '/user', { allowUnauthenticated: true }));
+        expect(error.code).toBe('company_suspended');
+        expect(handler).toHaveBeenCalledOnce();
+    });
+
+    it('403 でも code が company_suspended でなければ onCompanySuspended の handler を呼ばない', async () => {
+        const handler = vi.fn();
+        onCompanySuspended(handler);
+        vi.stubGlobal(
+            'fetch',
+            vi.fn<typeof fetch>(async () => jsonResponse(403, { code: 'forbidden', message: 'この操作は許可されていません。' })),
+        );
+
+        await catchApiError(apiRequest('GET', '/seeker-profile'));
+        expect(handler).not.toHaveBeenCalled();
     });
 
     it('423 password_confirmation_required は onPasswordConfirmationRequired の handler を呼ぶ', async () => {

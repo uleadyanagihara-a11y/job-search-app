@@ -177,6 +177,77 @@ describe('refresh', () => {
     });
 });
 
+// 通信中に logout・401・403 company_suspended 等で状態が確定したら、古い response で書き換えない。
+describe('通信中に状態が確定したとき', () => {
+    function deferred<T>() {
+        let resolve: (value: T) => void = () => {};
+        let reject: (reason: unknown) => void = () => {};
+        const promise = new Promise<T>((res, rej) => {
+            resolve = res;
+            reject = rej;
+        });
+
+        return { promise, resolve, reject };
+    }
+
+    it('refresh の結果を捨て、user と停止の印を残す', async () => {
+        const { authApi, auth } = await load();
+        auth.setUser(verifiedUser);
+        const request = deferred<User | null>();
+        authApi.fetchUser.mockReturnValue(request.promise);
+
+        const refreshing = auth.refresh();
+        auth.clear({ companySuspended: true });
+        request.resolve(verifiedUser);
+        await refreshing;
+
+        expect(auth.user.value).toBeNull();
+        expect(auth.takeCompanySuspended()).toBe(true);
+    });
+
+    it('syncFrom は新しい setUser を古い結果で上書きしない', async () => {
+        const { auth } = await load();
+        auth.setUser(unverifiedUser);
+        const request = deferred<User | null>();
+
+        const syncing = auth.syncFrom(() => request.promise);
+        auth.setUser(verifiedUser);
+        request.resolve({ ...unverifiedUser, name: 'Stale' });
+        await syncing;
+
+        expect(auth.user.value).toEqual(verifiedUser);
+    });
+
+    it('ensureLoaded の結果を捨てる', async () => {
+        const { authApi, auth } = await load();
+        const request = deferred<User | null>();
+        authApi.fetchUser.mockReturnValue(request.promise);
+
+        const loading = auth.ensureLoaded();
+        auth.clear({ companySuspended: true });
+        request.resolve(verifiedUser);
+        await loading;
+
+        expect(auth.user.value).toBeNull();
+        expect(auth.loaded.value).toBe(true);
+        expect(auth.takeCompanySuspended()).toBe(true);
+    });
+
+    it('ensureLoaded の失敗も捨てて resolve し、loadError にしない', async () => {
+        const { authApi, ApiError, auth } = await load();
+        const request = deferred<User | null>();
+        authApi.fetchUser.mockReturnValue(request.promise);
+
+        const loading = auth.ensureLoaded();
+        auth.setUser(verifiedUser);
+        request.reject(new ApiError(0, 'network_error', 'サーバーに接続できませんでした。'));
+
+        await expect(loading).resolves.toBeUndefined();
+        expect(auth.loadError.value).toBeNull();
+        expect(auth.user.value).toEqual(verifiedUser);
+    });
+});
+
 describe('logout', () => {
     it('logout API が成功したら user を破棄する', async () => {
         const { authApi, auth } = await load();

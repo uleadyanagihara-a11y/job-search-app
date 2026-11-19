@@ -101,14 +101,14 @@ class CompanyCommandsTest extends TestCase
         Notification::assertNothingSent();
     }
 
-    public function test_suspend_deletes_member_sessions_and_invalidates_remember_cookie(): void
+    public function test_suspend_locks_out_logged_in_member_without_touching_sessions_table(): void
     {
-        // 停止は sessions テーブルの行を消して session を切る（SESSION_DRIVER=database 前提）。
+        // 停止は sessions の行を消さず、api.company.active が request ごとに締め出す（M2.0）。
+        // session を request をまたいで残すため、test でも database driver にする。
         config(['session.driver' => 'database']);
 
         $company = Company::factory()->create();
         $member = User::factory()->companyMember($company)->create();
-        $seeker = User::factory()->create();
 
         $login = $this->fromFrontend()->postJson('/api/auth/login', [
             'email' => $member->email,
@@ -121,23 +121,21 @@ class CompanyCommandsTest extends TestCase
         $rememberCookie = [$rememberName => $login->getCookie($rememberName)->getValue()];
         $rememberToken = $member->fresh()->getRememberToken();
 
-        DB::table('sessions')->insert([
-            'id' => 'seeker-session', 'user_id' => $seeker->id, 'payload' => '', 'last_activity' => time(),
-        ]);
-
         // 停止前は session cookie でも remember cookie でも認証される（test 自体の前提の確認）。
         $this->getAsFrontend('/api/user', $sessionCookie)->assertOk();
         $this->getAsFrontend('/api/user', $rememberCookie)->assertOk();
-        $this->assertGreaterThan(0, DB::table('sessions')->where('user_id', $member->id)->count());
+        $sessions = DB::table('sessions')->where('user_id', $member->id)->count();
 
         $this->artisan('company:suspend', ['company' => $company->id])->assertSuccessful();
 
         $this->assertNotNull($company->fresh()->suspended_at);
-        $this->assertSame(0, DB::table('sessions')->where('user_id', $member->id)->count());
         $this->assertNotSame($rememberToken, $member->fresh()->getRememberToken());
-        // 他の企業・求職者の session は消さない。
-        $this->assertDatabaseHas('sessions', ['id' => 'seeker-session']);
+        $this->assertSame($sessions, DB::table('sessions')->where('user_id', $member->id)->count());
 
+        // 次の request で締め出され、その session は logout 済みになる。
+        $this->getAsFrontend('/api/user', $sessionCookie)
+            ->assertForbidden()
+            ->assertJson(['code' => 'company_suspended']);
         $this->getAsFrontend('/api/user', $sessionCookie)->assertUnauthorized();
         $this->getAsFrontend('/api/user', $rememberCookie)->assertUnauthorized();
     }

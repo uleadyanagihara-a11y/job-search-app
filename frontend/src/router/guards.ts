@@ -24,6 +24,12 @@ export async function authGuard(to: RouteLocationNormalized): Promise<boolean | 
         return access === 'public';
     }
 
+    // 所属企業の停止で logout された直後は、どの画面へ行こうとしても停止の旨を出す login へ送る
+    // （docs/domain-api-contract.md M2.2）。起動時の GET /api/user で分かった場合も、ここで送る。
+    if (auth.takeCompanySuspended() && !(to.name === 'login' && to.query.company_suspended === '1')) {
+        return { name: 'login', query: { company_suspended: '1' } };
+    }
+
     const user = auth.user.value;
 
     if (access === 'guest' && user !== null) {

@@ -4,6 +4,7 @@ use App\Http\Middleware\Api\EnsureApiEmailIsVerified;
 use App\Http\Middleware\Api\EnsureApiGuest;
 use App\Http\Middleware\Api\EnsureApiPasswordIsConfirmed;
 use App\Http\Middleware\Api\EnsureApiSession;
+use App\Http\Middleware\Api\EnsureCompanyIsActive;
 use App\Http\Middleware\ThrottleEmailVerificationCallback;
 use App\Support\Api\ApiExceptionRenderer;
 use App\Support\FrontendUrl;
@@ -64,7 +65,15 @@ return Application::configure(basePath: dirname(__DIR__))
             prepend: EnsureApiEmailIsVerified::class,
         );
 
+        // 停止中の企業の担当者は、メール確認・route binding より前に締め出す（docs/domain-api-contract.md M2.4）。
+        // priority 一覧に無いと最後に回り、binding の 404 や未確認の 403 を先に返してしまう。
+        $middleware->prependToPriorityList(
+            before: EnsureApiEmailIsVerified::class,
+            prepend: EnsureCompanyIsActive::class,
+        );
+
         $middleware->alias([
+            'api.company.active' => EnsureCompanyIsActive::class,
             'api.guest' => EnsureApiGuest::class,
             'api.verified' => EnsureApiEmailIsVerified::class,
             'api.password.confirm' => EnsureApiPasswordIsConfirmed::class,

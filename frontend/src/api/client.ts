@@ -41,6 +41,18 @@ export function onUnauthenticated(handler: UnauthenticatedHandler): void {
     unauthenticatedHandler = handler;
 }
 
+type CompanySuspendedHandler = () => void;
+
+let companySuspendedHandler: CompanySuspendedHandler | null = null;
+
+/**
+ * 所属企業が停止され、API が 403 `company_suspended` を返したときの処理（auth store の破棄と login への遷移）を登録する。
+ * server 側は既に logout している（docs/domain-api-contract.md M2.2）。`allowUnauthenticated` でも呼ぶ。
+ */
+export function onCompanySuspended(handler: CompanySuspendedHandler): void {
+    companySuspendedHandler = handler;
+}
+
 type PasswordConfirmationRequiredHandler = () => void;
 
 let passwordConfirmationRequiredHandler: PasswordConfirmationRequiredHandler | null = null;
@@ -89,6 +101,10 @@ export async function apiRequest(method: Method, path: string, options: RequestO
 
         if (error.status === 401 && !options.allowUnauthenticated) {
             unauthenticatedHandler?.();
+        }
+
+        if (error.code === 'company_suspended') {
+            companySuspendedHandler?.();
         }
 
         if (error.code === 'password_confirmation_required') {
