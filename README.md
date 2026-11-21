@@ -26,7 +26,9 @@ Laravel（API）とVue 3 + TypeScriptのSPA（`frontend/`）で構成した求�
 | [`docs/inertia-removal-migration.md`](docs/inertia-removal-migration.md) | Inertia から SPA + API への移行の経緯、API 契約、テスト方針 |
 | [`docs/phase0-api-contract.md`](docs/phase0-api-contract.md) | 移行の Phase 0 で確定した API 契約（path・status・error schema・認証方式）の記録 |
 | [`docs/accepted-vulnerabilities.md`](docs/accepted-vulnerabilities.md) | 許容している npm audit の advisory と再評価の手順、CI の実行制限 |
-| [`CLAUDE.md`](CLAUDE.md) | 開発環境・CI・依存更新の運用ルール（Claude Code 向けだが人が読んでもよい） |
+| [`docs/development.md`](docs/development.md) | Docker の起動・復旧・環境更新、DB/タイムゾーン、CI・依存更新の運用 |
+| [`CLAUDE.md`](CLAUDE.md) | 最重要ルールとコマンド（Claude Code 向けだが人が読んでもよい） |
+| [`.claude/rules/`](.claude/rules/) | Laravel（`laravel.md`）と SPA（`frontend.md`）のコーディング規約 |
 
 ## 前提条件
 

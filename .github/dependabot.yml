@@ -40,14 +40,14 @@ updates:
           - minor
           - patch
     ignore:
-      # typescript-eslint の peer 上限（<6.1.0）のため ~6.0.x に固定している（CLAUDE.md 参照）。
+      # typescript-eslint の peer 上限（<6.1.0）のため ~6.0.x に固定している（.claude/rules/frontend.md 参照）。
       # typescript-eslint が対応したら、この ignore を外して手動で上げる。
       - dependency-name: typescript
         update-types:
           - version-update:semver-minor
           - version-update:semver-major
       # @types/node の major は実行環境の Node の major（現在 24）に合わせる。
-      # Node を上げるときに手動で上げる（CLAUDE.md の Node の項を参照）。
+      # Node を上げるときに手動で上げる（docs/development.md の Node の項を参照）。
       - dependency-name: '@types/node'
         update-types:
           - version-update:semver-major

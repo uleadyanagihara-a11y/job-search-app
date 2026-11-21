@@ -198,7 +198,7 @@ class ApiEndpointContractTest extends TestCase
         $user = $this->userWithRole($role);
         $asNotFound = in_array("{$method} {$uri}", self::ROLE_DENIED_AS_NOT_FOUND, true);
 
-        // 空 body でも validation（422）より前に拒否する（ロール違いを FormRequest より先に判定する。CLAUDE.md）。
+        // 空 body でも validation（422）より前に拒否する（ロール違いを FormRequest より先に判定する。.claude/rules/laravel.md）。
         $this->actingAs($user)->fromFrontend()->json($method, $this->withParameters($uri, $user), [])
             ->assertStatus($asNotFound ? 404 : 403)
             ->assertExactJson($asNotFound
@@ -243,7 +243,7 @@ class ApiEndpointContractTest extends TestCase
             [$path, $resources] = $this->resolveParameters($uri, $owner);
             $before = $this->snapshot($resources);
 
-            // 空 body でも validation（422）より前に 404（Policy を FormRequest より先に呼ぶ。CLAUDE.md）。
+            // 空 body でも validation（422）より前に 404（Policy を FormRequest より先に呼ぶ。.claude/rules/laravel.md）。
             $this->actingAs($intruder)->fromFrontend()->json($method, $path, [])
                 ->assertStatus(404)
                 ->assertExactJson(self::NOT_FOUND_BODY);

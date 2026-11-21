@@ -99,7 +99,7 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     env:
-      # ローカル（.env.example / CLAUDE.md）と同じ値に揃える
+      # ローカル（.env.example / docs/development.md）と同じ値に揃える
       APP_ENV: testing
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       APP_URL: http://localhost:8080

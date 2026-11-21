@@ -45,3 +45,6 @@ Homestead.yaml
 # Stray local files
 /type
 /type2
+
+# Python の byte code（.github/scripts・.claude/hooks）
+__pycache__/

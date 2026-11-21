@@ -136,7 +136,7 @@ def check(product: dict) -> tuple[str, str] | None:
         "### メモ",
         "",
         "- 最新版の情報は endoflife.date から取得している（公式の公開から 1 日ほど遅れることがある）。",
-        "- 上げる手順は CLAUDE.md（Node は 4 か所を同時に、PHP は Sail image の build と `PHP_MIN_VERSION`）。",
+        "- 上げる手順は docs/development.md の 5 節（Node は 4 か所を同時に、PHP は Sail image の build と `PHP_MIN_VERSION`）。",
         "- 修正版がまだ無い脆弱性は、この Issue では知らせられない。",
     ]
     return title, "\n".join(lines) + "\n"
