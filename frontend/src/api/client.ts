@@ -53,6 +53,19 @@ export function onCompanySuspended(handler: CompanySuspendedHandler): void {
     companySuspendedHandler = handler;
 }
 
+type AuthStateOutdatedHandler = () => void;
+
+let authStateOutdatedHandler: AuthStateOutdatedHandler | null = null;
+
+/**
+ * server の認証状態が SPA の auth store より新しいとき（別の tab でログインした・メールアドレスを変えた等）に
+ * API が返す `409 already_authenticated`・`403 email_unverified` の処理（auth store の取り直しと画面の振り直し）を登録する
+ * （docs/domain-api-contract.md M2.2）。
+ */
+export function onAuthStateOutdated(handler: AuthStateOutdatedHandler): void {
+    authStateOutdatedHandler = handler;
+}
+
 type PasswordConfirmationRequiredHandler = () => void;
 
 let passwordConfirmationRequiredHandler: PasswordConfirmationRequiredHandler | null = null;
@@ -105,6 +118,10 @@ export async function apiRequest(method: Method, path: string, options: RequestO
 
         if (error.code === 'company_suspended') {
             companySuspendedHandler?.();
+        }
+
+        if (error.code === 'already_authenticated' || error.code === 'email_unverified') {
+            authStateOutdatedHandler?.();
         }
 
         if (error.code === 'password_confirmation_required') {

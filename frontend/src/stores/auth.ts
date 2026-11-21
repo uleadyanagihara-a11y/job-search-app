@@ -122,6 +122,8 @@ export function useAuthStore() {
         setUser,
         clear,
         takeCompanySuspended,
+        /** 停止の印が付いていて、まだ guard が読んでいないか（読んでも消さない）。 */
+        companySuspendedPending: readonly(companySuspended),
         syncFrom,
         refresh,
         logout,

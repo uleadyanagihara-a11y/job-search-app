@@ -70,6 +70,12 @@ path parameter（`{jobPosting}` 等）のある endpoint は、resource の見�
 `403 company_suspended` の body の `message` は「この企業アカウントは現在利用できません。運営にお問い合わせください。」とする。SPA の login 画面は `message` に依存せず、`code` が `company_suspended` なら下の `?company_suspended=1` と同じ固定文言の alert を出す（2026-11-21 変更。以前は `error.message` をそのまま出していた）。
 login 以外の API が `403 company_suspended` を返したら、SPA は auth store を破棄して `/login?company_suspended=1` へ `replace` し、login 画面が同じ文を固定文言で出す（`message` に依存しない）。起動時の `GET /api/user` でも同じ（`fetchUser()` は `null` を返す。遷移は handler ではなく最初の遷移の router guard が auth store の印を読んで行う。2 つの遷移を競わせると `?redirect=` 付きの login が勝つため）。処理は `frontend/src/router/apiErrorHandlers.ts`。
 
+guest 用の API の `409 already_authenticated` と、`api.verified` の API の `403 email_unverified` は、別の tab でログインした・メールアドレスを変えた等で、server の認証状態が SPA の auth store より新しいときに返る（2026-11-21 追加）。
+SPA は画面ごとに `code` で分岐しない。auth store を取り直し（`GET /api/user`）、今の画面（path・query・hash）へ `replace`（`force`）で遷移し直して、遷移先は router guard に決めさせる（ログイン済みなら guest の画面から dashboard、メール未確認なら `verification.notice`）。
+画面は他の失敗と同じく `message` を alert に出すため、遷移するまでの間（`GET /api/user` の 1 往復）と、取り直しに失敗して遷移しないときは「既にログインしています」等が見える（文言が状況に合っているため許容する）。
+起動時の最初の遷移の途中では遷移しない（最初の遷移の guard が同じ判定をする）。取り直しの `GET /api/user` が `403 company_suspended` を返したら、遷移は `company_suspended` の処理に任せる（2 つの遷移を競わせない）。処理は `company_suspended` と同じ `frontend/src/router/apiErrorHandlers.ts`。
+確認メールの再送 API の `409 conflict`（別の tab で確認済みになっていた）はこれとは別で、今までどおり画面の中で user を取り直す。
+
 ### M2.3 新しい API
 
 | API | middleware | 成功 | 失敗 |

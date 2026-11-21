@@ -2,6 +2,10 @@
 import { onMounted, ref } from 'vue';
 import { isApiError } from '@/api/client';
 import * as profileApi from '@/api/profile';
+import AlertMessage from '@/components/AlertMessage.vue';
+import ContentCard from '@/components/ContentCard.vue';
+import MutedText from '@/components/MutedText.vue';
+import PageHeading from '@/components/PageHeading.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout.vue';
 import { useAuthStore } from '@/stores/auth';
@@ -38,23 +42,13 @@ onMounted(load);
 <template>
     <AuthenticatedLayout>
         <template #header>
-            <h1 class="text-xl font-semibold leading-tight text-fg">
-                プロフィール
-            </h1>
+            <PageHeading>プロフィール</PageHeading>
         </template>
 
         <div class="py-12">
             <div class="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                <div
-                    v-if="loadError"
-                    class="bg-surface p-4 shadow-sm sm:rounded-lg sm:p-8"
-                >
-                    <p
-                        role="alert"
-                        class="text-sm text-danger-600"
-                    >
-                        プロフィールを読み込めませんでした。{{ loadError }}
-                    </p>
+                <ContentCard v-if="loadError">
+                    <AlertMessage>プロフィールを読み込めませんでした。{{ loadError }}</AlertMessage>
 
                     <SecondaryButton
                         class="mt-4"
@@ -62,35 +56,33 @@ onMounted(load);
                     >
                         再読み込み
                     </SecondaryButton>
-                </div>
+                </ContentCard>
 
                 <template v-else-if="loaded">
-                    <!-- account 削除の直後は auth store の user が null になり、login へ遷移するまで描画しない -->
-                    <div
-                        v-if="auth.user.value"
-                        class="bg-surface p-4 shadow-sm sm:rounded-lg sm:p-8"
-                    >
+                    <!-- account 削除の直後は auth store の user が null になり、login へ遷移するまで描画しない。
+                         見出しは各 form が持つ（h2）ため、ContentCard には title を渡さない -->
+                    <ContentCard v-if="auth.user.value">
                         <UpdateProfileInformationForm
                             :user="auth.user.value"
                             class="max-w-xl"
                         />
-                    </div>
+                    </ContentCard>
 
-                    <div class="bg-surface p-4 shadow-sm sm:rounded-lg sm:p-8">
+                    <ContentCard>
                         <UpdatePasswordForm class="max-w-xl" />
-                    </div>
+                    </ContentCard>
 
-                    <div class="bg-surface p-4 shadow-sm sm:rounded-lg sm:p-8">
+                    <ContentCard>
                         <DeleteUserForm class="max-w-xl" />
-                    </div>
+                    </ContentCard>
                 </template>
 
-                <p
+                <MutedText
                     v-else
-                    class="px-4 text-sm text-fg-muted sm:px-0"
+                    class="px-4 sm:px-0"
                 >
                     読み込み中…
-                </p>
+                </MutedText>
             </div>
         </div>
     </AuthenticatedLayout>

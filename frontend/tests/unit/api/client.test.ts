@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
     apiRequest,
     isApiError,
+    onAuthStateOutdated,
     onCompanySuspended,
     onPasswordConfirmationRequired,
     onUnauthenticated,
@@ -123,6 +124,33 @@ describe('apiRequest', () => {
         );
 
         await catchApiError(apiRequest('GET', '/seeker-profile'));
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        [409, 'already_authenticated'],
+        [403, 'email_unverified'],
+    ])('%i %s は onAuthStateOutdated の handler を呼ぶ', async (status, code) => {
+        const handler = vi.fn();
+        onAuthStateOutdated(handler);
+        vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => jsonResponse(status, { code, message: 'message' })));
+
+        const error = await catchApiError(apiRequest('GET', '/seeker-profile'));
+
+        expect(error.code).toBe(code);
+        expect(handler).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+        [409, 'conflict'],
+        [403, 'forbidden'],
+    ])('%i %s では onAuthStateOutdated の handler を呼ばない（確認メールの再送の 409 conflict は画面が扱う）', async (status, code) => {
+        const handler = vi.fn();
+        onAuthStateOutdated(handler);
+        vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => jsonResponse(status, { code, message: 'message' })));
+
+        await catchApiError(apiRequest('GET', '/seeker-profile'));
+
         expect(handler).not.toHaveBeenCalled();
     });
 

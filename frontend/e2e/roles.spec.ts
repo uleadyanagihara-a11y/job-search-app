@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { E2E_USERS, openAs, PASSWORD } from './helpers';
+import { E2E_USERS, loginViaApi, openAs, PASSWORD } from './helpers';
 
 // ロールによる画面の振り分けと、求職者プロフィール・企業の停止（docs/domain-api-contract.md M2）。
 // user は E2eSeeder が作る（register の rate limit を使わない）。
@@ -118,4 +118,24 @@ test('reload 時の GET /api/user が 403 company_suspended なら、redirect �
     // handler と router guard の遷移が競うと `/login?redirect=%2Fprofile` が勝ち、停止の旨が消える
     await expect(page).toHaveURL('/login?company_suspended=1');
     await expect(page.getByRole('alert').filter({ hasText: 'この企業アカウントは現在利用できません。' })).toBeVisible();
+});
+
+// --- server の認証状態が SPA より新しい（docs/domain-api-contract.md M2.2）---
+
+test('login 画面を開いたまま別の tab でログインすると、送信時に 409 already_authenticated を受けて dashboard へ移る', async ({ context }) => {
+    const stale = await context.newPage();
+    await stale.goto('/login');
+    await expect(stale).toHaveTitle('ログイン - Job Search App');
+
+    // 同じ browser の別の tab でログインする（session cookie は共有される）
+    const other = await context.newPage();
+    await other.goto('/login');
+    expect(await loginViaApi(other, 'seeker')).toBe(200);
+
+    // 古い tab は未ログインの表示のまま送信する。API の message は出さず、user を取り直して dashboard へ移る
+    await stale.getByLabel('メールアドレス').fill(E2E_USERS.seeker.email);
+    await stale.getByLabel('パスワード').fill(PASSWORD);
+    await stale.getByRole('button', { name: 'ログイン' }).click();
+    await expect(stale).toHaveURL('/dashboard');
+    await expect(stale.getByRole('button', { name: E2E_USERS.seeker.name })).toBeVisible();
 });
