@@ -21,6 +21,12 @@ path parameter（`{jobPosting}` 等）のある endpoint は、resource の見�
 
 `ApiEndpointContractTest` の `RESOURCE_SCOPES` に写す（path parameter のある auth route は宣言が無いと落ちる）。`owner` の endpoint は、同じロールの別の user（担当者なら別の企業の担当者）が持ち主の resource を指定すると `404` で、存在しない id と同じ body で、DB が変わらないことを横断で検査する。
 
+横断検査では保証されないこと（2026-11-21 追記）:
+
+- path parameter の無い endpoint（一覧など）は対象外。他人の resource が含まれないことは、endpoint ごとの feature test で件数と id の両方を確かめる。
+- path parameter が 2 つ以上ある route では、全部の parameter を持ち主の resource で埋め、request を送る user だけを替える。「親は自分の resource・子は他人の resource」の組み合わせは送らないため、`scopeBindings()` の付け忘れは検出できない。横断検査にこの組み合わせを足すかどうかは M5 の開始時に決める（**未決**）。
+- `roles`・`RESOURCE_SCOPES` は契約を手で写したもの。契約と同じ誤り（`owner` にすべきものを `public` と書くなど）があっても test は通る。そのため契約のレビューでは、`public` の endpoint ごとに、公開中のものだけを返すか（下書き・終了・停止中の企業の求人を除く scope を通るか）を確かめる。実装後は、実装とは別のコンテキストのレビュー（API は `php-reviewer`、SPA の型・`code` の扱い・route の `meta.roles` は `frontend-reviewer`）で契約と実装を照合する。
+
 ## M2: ロール・企業の招待・求職者プロフィール
 
 状態: **確定（2026-11-13）、実装済み（2026-11-13）**。実装で決めた細部は M2.9。
@@ -98,7 +104,7 @@ login 以外の API が `403 company_suspended` を返したら、SPA は auth s
 - PUT は全 field を送る置き換え。送らなかった field は `null` にする（部分更新の PATCH にしない。form は常に全欄を送るため）。
 - 応募に必要な必須項目は M5 で決める（設計書 4 章）。M2 では全項目任意。
 - 企業担当者が応募者のプロフィールを見る API は M5（応募と一緒に作る）。
-- `lang/ja/validation.php` の `attributes` に `desired_prefecture`（希望勤務地）・`desired_job_type`（希望職種）・`self_pr`（自己 PR）・`token`（招待のリンク）を足す（CLAUDE.md の言語の規約）。`token` は既に「再設定用のトークン」のため、招待では `errors.token` の文を FormRequest の `messages()` で上書きする。
+- `lang/ja/validation.php` の `attributes` に `desired_prefecture`（希望勤務地）・`desired_job_type`（希望職種）・`self_pr`（自己 PR）・`token`（招待のリンク）を足す（`.claude/rules/laravel.md` の言語の規約）。`token` は既に「再設定用のトークン」のため、招待では `errors.token` の文を FormRequest の `messages()` で上書きする。
 
 ### M2.4 認可と middleware の実行順
 
@@ -177,7 +183,7 @@ API ではないが、契約の確認に必要なものだけ書く。
 - Policy（`JobPostingPolicy`）: 企業側の ability（`view`・`update`・公開・終了・削除など）は、private method `belongsToCompanyOf(User, JobPosting)` で「担当者の所属企業の id と求人の `company_id` が一致するか」を判定し、違えば `Response::denyAsNotFound()`。ability ごとに条件を書かない。呼び出しは controller の `Gate::authorize()` の 1 か所で、FormRequest はその後に `app()` で解決する（validation より前に 404 を返すため。M2.9）。
 - 一覧: Policy の `viewAny` で「企業担当者か」を見て、取得は担当者の所属企業で `whereBelongsTo()` して絞る。詳細・更新も一覧と同じ範囲になる。
 - `company_id` は `#[Fillable]` にも FormRequest の rules にも入れない。作成時に担当者の所属企業から `forceFill` で入れ、更新では変えない（自社の求人を他社へ移せない）。
-- 求人の下にぶら下がる resource（M5 の応募など）の route は `scopeBindings()` にし、自社の求人の id と他社の応募の id を組み合わせても読めないようにする。
+- 求人の下にぶら下がる resource（M5 の応募など）の route は `scopeBindings()` にし、自社の求人の id と他社の応募の id を組み合わせても読めないようにする（この組み合わせは横断検査では送らない。冒頭の「横断検査では保証されないこと」）。
 
 feature test の観点（§5.5.5 の表に加えて）:
 
@@ -185,4 +191,4 @@ feature test の観点（§5.5.5 の表に加えて）:
 | --- | --- |
 | 企業側の求人の各 endpoint | 他社の担当者は、求人が下書き・公開中・終了のどれでも `404`、存在しない id と同じ body、DB が変わらない。空 body でも `422` より前に `404` |
 | 作成・編集 | body の `company_id`・`status`・`published_at` は無視される（自社の求人を他社に移せない） |
-| 一覧 | 他社の求人を用意しても、response に自社の求人だけが含まれる（件数と id の両方） |
+| 一覧 | 他社の求人を用意しても、response に自社の求人だけが含まれる（件数と id の両方）。path parameter が無く `RESOURCE_SCOPES` の横断検査の対象外のため、他社の求人の漏れを見つけるのはこの test だけ |
