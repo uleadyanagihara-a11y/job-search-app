@@ -16,11 +16,15 @@ import type { SeekerProfile } from '@/types/api';
 const props = defineProps<{ profile: SeekerProfile }>();
 
 // 入力欄は文字列で持ち、送るときに API の型（未入力は null、都道府県は番号）へ変える。
-const { data, errors, error, processing, recentlySuccessful, submit } = useApiForm({
-    desired_prefecture: props.profile.desired_prefecture?.toString() ?? '',
-    desired_job_type: props.profile.desired_job_type ?? '',
-    self_pr: props.profile.self_pr ?? '',
-});
+function toInput(profile: SeekerProfile) {
+    return {
+        desired_prefecture: profile.desired_prefecture?.toString() ?? '',
+        desired_job_type: profile.desired_job_type ?? '',
+        self_pr: profile.self_pr ?? '',
+    };
+}
+
+const { data, errors, error, processing, recentlySuccessful, submit } = useApiForm(toInput(props.profile));
 
 function toPayload(input: typeof data): seekerProfileApi.SeekerProfileInput {
     return {
@@ -31,7 +35,28 @@ function toPayload(input: typeof data): seekerProfileApi.SeekerProfileInput {
 }
 
 async function onSubmit(): Promise<void> {
-    await submit((input) => seekerProfileApi.updateSeekerProfile(toPayload(input)));
+    let sent: typeof data | null = null;
+
+    await submit(
+        (input) => {
+            sent = input;
+
+            return seekerProfileApi.updateSeekerProfile(toPayload(input));
+        },
+        {
+            // server は前後の空白を落として保存する（TrimStrings）。画面を保存した値にそろえる（reload と同じ表示にする）。
+            // 送信中も入力欄は編集できるため、送った後に書き換えた field は利用者の入力を残す（保存されていない入力を消さない）。
+            onSuccess: (saved) => {
+                const savedInput = toInput(saved);
+
+                for (const key of Object.keys(savedInput) as (keyof typeof savedInput)[]) {
+                    if (sent !== null && data[key] === sent[key]) {
+                        data[key] = savedInput[key];
+                    }
+                }
+            },
+        },
+    );
 }
 </script>
 
@@ -89,7 +114,7 @@ async function onSubmit(): Promise<void> {
                 class="mt-1 block w-full"
                 placeholder="例: Web エンジニア、営業"
                 :aria-invalid="errors.desired_job_type ? 'true' : undefined"
-                :aria-describedby="errors.desired_job_type ? 'desired_job_type-error' : 'desired_job_type-hint'"
+                :aria-describedby="errors.desired_job_type ? 'desired_job_type-error desired_job_type-hint' : 'desired_job_type-hint'"
             />
 
             <MutedText
@@ -118,7 +143,7 @@ async function onSubmit(): Promise<void> {
                 rows="8"
                 class="mt-1 block w-full"
                 :aria-invalid="errors.self_pr ? 'true' : undefined"
-                :aria-describedby="errors.self_pr ? 'self_pr-error' : 'self_pr-hint'"
+                :aria-describedby="errors.self_pr ? 'self_pr-error self_pr-hint' : 'self_pr-hint'"
             />
 
             <MutedText

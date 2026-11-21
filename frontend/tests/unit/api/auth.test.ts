@@ -2,44 +2,14 @@ import { describe, expect, it, vi } from 'vitest';
 import * as authApi from '@/api/auth';
 import { isApiError, onUnauthenticated } from '@/api/client';
 import type { User } from '@/types/api';
+import { catchError, jsonResponse, sentRequests, stubFetch } from './helpers';
 
 // 認証 API（docs/phase0-api-contract.md §0.2）の endpoint・body と、response の形の検証。
 // CSRF・419・error の変換は tests/unit/api/client.test.ts で確認済みなので、ここは各関数の責務に絞る。
 
 const user: User = { id: 1, name: 'Test', email: 'test@example.com', email_verified_at: null, role: 'seeker', company_id: null };
 
-function jsonResponse(status: number, body: unknown): Response {
-    return new Response(JSON.stringify(body), {
-        status,
-        headers: { 'Content-Type': 'application/json' },
-    });
-}
-
 const unauthenticated = () => jsonResponse(401, { code: 'unauthenticated', message: 'Unauthenticated.' });
-
-/** XSRF-TOKEN を置いた上で fetch を stub し、CSRF Cookie の取得を挟まずに 1 request だけ観測する。 */
-function stubFetch(respond: () => Response | Promise<Response>) {
-    document.cookie = 'XSRF-TOKEN=token; path=/';
-    const fetchMock = vi.fn<typeof fetch>(async () => respond());
-    vi.stubGlobal('fetch', fetchMock);
-
-    return fetchMock;
-}
-
-function sentRequests(fetchMock: ReturnType<typeof stubFetch>) {
-    return fetchMock.mock.calls.map(([input, init]) => ({
-        url: String(input),
-        method: init?.method,
-        body: typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : init?.body,
-    }));
-}
-
-async function catchError(promise: Promise<unknown>): Promise<unknown> {
-    return promise.then(
-        () => null,
-        (error: unknown) => error,
-    );
-}
 
 describe('fetchUser', () => {
     it('GET /api/user の data を返す', async () => {

@@ -114,7 +114,8 @@ describe('UpdateProfileInformationForm', () => {
         await flushPromises();
 
         expect(wrapper.get('[role="alert"]').text()).toBe('サーバーに接続できませんでした。');
-        expect(wrapper.find('[role="status"]').exists()).toBe(false);
+        // live region は常にあり、文言だけが出ない（SavedStatus）
+        expect(wrapper.get('[role="status"]').text()).toBe('');
     });
 
     it('認証済みなら確認メールの再送は出さない', () => {
@@ -135,7 +136,8 @@ describe('UpdateProfileInformationForm', () => {
 
         expect(authApi.sendVerificationNotification).toHaveBeenCalledOnce();
         expect(profileApi.updateProfile).not.toHaveBeenCalled();
-        expect(wrapper.get('[role="status"]').text()).toBe('確認メールを送信しました。');
+        // この form には「保存しました。」の live region（SavedStatus）も常にあるため、DOM の順序に依存せず文言で探す
+        expect(wrapper.findAll('[role="status"]').map((status) => status.text())).toContain('確認メールを送信しました。');
     });
 
     it('再送の 409（別 tab で認証済み）は user を取り直す', async () => {

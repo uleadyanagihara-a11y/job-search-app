@@ -4,9 +4,14 @@ import { E2E_USERS, openAs, PASSWORD } from './helpers';
 // ロールによる画面の振り分けと、求職者プロフィール・企業の停止（docs/domain-api-contract.md M2）。
 // user は E2eSeeder が作る（register の rate limit を使わない）。
 
-/** SPA と同じく session cookie と Referer（Sanctum の stateful 判定）を付けて API を呼ぶ。 */
+/**
+ * SPA と同じく session cookie と Referer（Sanctum の stateful 判定）を付けて API を呼ぶ。
+ * Referer は baseURL（E2E_BASE_URL で上書きできる）から作る。固定すると上書き時に stateful から外れ、
+ * session があっても 401 になって「ログインしていない」の検査が意味を失う。
+ */
 async function apiStatus(page: Page, path: string): Promise<number> {
-    const response = await page.request.get(path, { headers: { Accept: 'application/json', Referer: 'http://localhost/' } });
+    const referer = new URL('/', test.info().project.use.baseURL).href;
+    const response = await page.request.get(path, { headers: { Accept: 'application/json', Referer: referer } });
 
     return response.status();
 }
@@ -26,7 +31,8 @@ test('求職者は nav から求職者プロフィールを開いて保存でき
     // 2000 文字を超えると 422 を field に出す
     await selfPr.fill('あ'.repeat(2001));
     await page.getByRole('button', { name: '保存' }).click();
-    await expect(page.locator('#self_pr-error')).not.toBeEmpty();
+    // 表示名（lang の attributes）と field の下の表示を、実サーバの文言で確かめる
+    await expect(page.locator('#self_pr-error')).toHaveText('自己 PRは2000文字以内で入力してください。');
     await expect(selfPr).toHaveAttribute('aria-invalid', 'true');
 
     await prefecture.selectOption({ label: '大阪府' });

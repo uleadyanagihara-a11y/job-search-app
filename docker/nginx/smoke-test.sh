@@ -85,6 +85,29 @@ expect_referrer_policy 'GET /reset-password/{token} (Vite)' "$SPA/reset-password
 expect_referrer_policy 'GET /api/user (Laravel)' "$SPA/api/user" -H 'Accept: application/json'
 expect_referrer_policy 'GET /up (Laravel)' "$SPA/up"
 
+echo "access log"
+# 招待・再設定の画面の URL（token を含む）が Referer として log に残らない（default.conf の log_format no_referer）
+# 0 件が「log を読めなかった」ためでないよう、同じ request の User-Agent（log に出る）の印が出るまで待ってから数える。
+marker="smoke-$$-$RANDOM"
+status="$(curl -s -o /dev/null -w '%{http_code}' -A "smoke-ua-$marker" -H "Referer: $SPA/invitations/referer-$marker" "$SPA/sanctum/csrf-cookie")"
+if [ "$status" != 204 ]; then
+    fail "access log: GET /sanctum/csrf-cookie が status $status (expected 204)"
+else
+    log=''
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        log="$(docker compose logs --since 1m nginx 2>&1)"
+        grep -q "smoke-ua-$marker" <<<"$log" && break
+        sleep 0.5
+    done
+    if ! grep -q "smoke-ua-$marker" <<<"$log"; then
+        fail 'access log: request の行が nginx の log に見つからない（docker compose logs を読めない）'
+    elif grep -q "referer-$marker" <<<"$log"; then
+        fail 'access log に Referer の token が残っている'
+    else
+        pass 'Referer の token が access log に残らない'
+    fi
+fi
+
 echo "HMR WebSocket"
 token="$(curl -s "$SPA/@vite/client" | sed -n 's/^const wsToken = "\([^"]*\)";/\1/p')"
 if [ -z "$token" ]; then

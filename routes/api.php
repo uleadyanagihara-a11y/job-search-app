@@ -59,8 +59,8 @@ Route::patch('/profile', [ProfileController::class, 'update'])
 
 // password 更新と account 削除は body の現在 password で本人確認するため
 // api.password.confirm を重ねない（docs/inertia-removal-migration.md §5.5.2）。
-// 現在 password の総当たりを防ぐため、同じく password を照合する confirm-password と
-// limiter を共有し、3 endpoint の合計で数える。
+// 現在 password の総当たりを防ぐため、同じく password を照合する confirm-password・
+// PATCH /api/profile（email の変更）と limiter を共有し、これらの合計で数える。
 Route::delete('/profile', [ProfileController::class, 'destroy'])
     ->middleware(['auth:sanctum', 'api.company.active', 'throttle:auth.confirm-password', 'api.session']);
 

@@ -61,6 +61,38 @@ describe('LoginView', () => {
         expect(wrapper.get('#email-error').isVisible()).toBe(false);
     });
 
+    it('403 company_suspended は API の message ではなく code で判定し、固定文言の alert を 1 つだけ出す', async () => {
+        vi.mocked(authApi.login).mockRejectedValue(new ApiError(403, 'company_suspended', 'サーバーの文言'));
+        // auth store は module の状態のため、前の test の login で入った user を消しておく。
+        useAuthStore().clear();
+        const { router, wrapper } = await mountAt(LoginView, '/login');
+
+        await wrapper.get('#email').setValue('company@example.com');
+        await wrapper.get('#password').setValue('password');
+        await wrapper.get('form').trigger('submit');
+        await flushPromises();
+
+        const alerts = wrapper.findAll('[role="alert"]');
+        expect(alerts).toHaveLength(1);
+        expect(alerts[0]?.text()).toContain('この企業アカウントは現在利用できません');
+        expect(wrapper.text()).not.toContain('サーバーの文言');
+        expect(wrapper.get<HTMLInputElement>('#password').element.value).toBe('');
+        expect(useAuthStore().user.value).toBeNull();
+        expect(router.currentRoute.value.name).toBe('login');
+    });
+
+    it('?company_suspended=1 で開いた後に別の error が出たら、その alert だけにする', async () => {
+        vi.mocked(authApi.login).mockRejectedValue(new ApiError(0, 'network_error', 'サーバーに接続できませんでした。'));
+        const { wrapper } = await mountAt(LoginView, '/login?company_suspended=1');
+
+        await wrapper.get('form').trigger('submit');
+        await flushPromises();
+
+        const alerts = wrapper.findAll('[role="alert"]');
+        expect(alerts).toHaveLength(1);
+        expect(alerts[0]?.text()).toBe('サーバーに接続できませんでした。');
+    });
+
     it('送信中は button を無効にする', async () => {
         vi.mocked(authApi.login).mockReturnValue(new Promise(() => {}));
         const { wrapper } = await mountAt(LoginView, '/login');

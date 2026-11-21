@@ -71,7 +71,12 @@ function isNullableString(value: unknown): value is string | null {
 export function isSeekerProfile(value: unknown): value is SeekerProfile {
     return (
         isRecord(value) &&
-        (value.desired_prefecture === null || typeof value.desired_prefecture === 'number') &&
+        // JIS の都道府県番号（1〜47。docs/domain-api-contract.md M2.0）。範囲外だと select に一致する option が無い。
+        (value.desired_prefecture === null ||
+            (typeof value.desired_prefecture === 'number' &&
+                Number.isInteger(value.desired_prefecture) &&
+                value.desired_prefecture >= 1 &&
+                value.desired_prefecture <= 47)) &&
         isNullableString(value.desired_job_type) &&
         isNullableString(value.self_pr) &&
         isNullableString(value.updated_at)

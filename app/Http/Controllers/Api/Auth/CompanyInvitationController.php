@@ -6,6 +6,7 @@ use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\InvitationAcceptRequest;
 use App\Http\Requests\Auth\InvitationLookupRequest;
+use App\Http\Resources\InvitationSummaryResource;
 use App\Http\Resources\UserResource;
 use App\Models\CompanyInvitation;
 use App\Models\CompanyMember;
@@ -27,17 +28,9 @@ class CompanyInvitationController extends Controller
     /**
      * POST /api/company-invitations/lookup。
      */
-    public function lookup(InvitationLookupRequest $request): JsonResponse
+    public function lookup(InvitationLookupRequest $request): InvitationSummaryResource
     {
-        $invitation = $this->findAcceptableInvitation($request->validated('token'));
-
-        return response()->json([
-            'data' => [
-                'company_name' => $invitation->company->name,
-                'email' => $invitation->email,
-                'expires_at' => $invitation->expires_at->clone()->utc()->format('Y-m-d\TH:i:s\Z'),
-            ],
-        ]);
+        return new InvitationSummaryResource($this->findAcceptableInvitation($request->validated('token')));
     }
 
     /**

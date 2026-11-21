@@ -4,6 +4,7 @@ import * as profileApi from '@/api/profile';
 import InputError from '@/components/InputError.vue';
 import InputLabel from '@/components/InputLabel.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
+import SavedStatus from '@/components/SavedStatus.vue';
 import TextInput from '@/components/TextInput.vue';
 import { useApiForm } from '@/composables/useApiForm';
 
@@ -141,20 +142,7 @@ async function onSubmit(): Promise<void> {
                     保存
                 </PrimaryButton>
 
-                <Transition
-                    enter-active-class="transition ease-in-out"
-                    enter-from-class="opacity-0"
-                    leave-active-class="transition ease-in-out"
-                    leave-to-class="opacity-0"
-                >
-                    <p
-                        v-if="recentlySuccessful"
-                        role="status"
-                        class="text-sm text-fg-muted"
-                    >
-                        保存しました。
-                    </p>
-                </Transition>
+                <SavedStatus :show="recentlySuccessful" />
             </div>
         </form>
     </section>

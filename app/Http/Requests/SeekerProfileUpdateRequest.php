@@ -21,7 +21,8 @@ class SeekerProfileUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'desired_prefecture' => ['nullable', 'integer', Rule::enum(Prefecture::class)],
+            // 契約は integer | null（M2.0）。strict でないと "13" や true（→ 1 = 北海道）も通る。
+            'desired_prefecture' => ['nullable', 'integer:strict', Rule::enum(Prefecture::class)],
             'desired_job_type' => ['nullable', 'string', 'max:100'],
             'self_pr' => ['nullable', 'string', 'max:2000'],
         ];

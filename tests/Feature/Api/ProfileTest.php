@@ -93,6 +93,32 @@ class ProfileTest extends TestCase
         $this->assertNotSame($other->email, $user->refresh()->email);
     }
 
+    public function test_email_taken_by_another_user_after_validation_gets_409(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+        $originalEmail = $user->email;
+        $originalName = $user->name;
+
+        // validation の unique の後に、同時の登録・招待の受諾で同じ email の user が先に commit した。
+        $this->interleaveAfterQuery(
+            'from `users` where `email`',
+            fn () => User::factory()->create(['email' => 'taken-later@example.com']),
+        );
+
+        $this->actingAs($user)->fromFrontend()->patchJson('/api/profile', [
+            'name' => 'Test User',
+            'email' => 'taken-later@example.com',
+            'current_password' => 'password',
+        ])->assertStatus(409)->assertJson(['code' => 'conflict']);
+
+        $user->refresh();
+        $this->assertSame($originalEmail, $user->email);
+        $this->assertSame($originalName, $user->name);
+        $this->assertNotNull($user->email_verified_at);
+        Notification::assertNothingSent();
+    }
+
     public function test_profile_update_validates_input(): void
     {
         $user = User::factory()->create();

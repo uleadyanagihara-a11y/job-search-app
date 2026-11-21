@@ -7,6 +7,7 @@ use App\Http\Requests\ProfileUpdateRequest;
 use App\Http\Resources\UserResource;
 use App\Models\CompanyMember;
 use App\Notifications\EmailChangedNotification;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
@@ -43,7 +44,13 @@ class ProfileController extends Controller
             $user->email_verified_at = null;
         }
 
-        $user->save();
+        // validation の unique は事前チェックにすぎず、同時の登録・招待の受諾・別の user の変更では抜けるため、
+        // `users.email` の unique 制約を正として 409 にする（docs/domain-api-contract.md M2.2、§5.5.5）。
+        try {
+            $user->save();
+        } catch (UniqueConstraintViolationException) {
+            abort(Response::HTTP_CONFLICT);
+        }
 
         if ($previousEmail !== null) {
             Notification::route('mail', $previousEmail)->notify(new EmailChangedNotification);

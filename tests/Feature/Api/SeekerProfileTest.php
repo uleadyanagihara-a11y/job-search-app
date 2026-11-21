@@ -118,6 +118,25 @@ class SeekerProfileTest extends TestCase
         ]);
     }
 
+    public function test_concurrent_first_put_of_the_same_user_replaces_instead_of_500(): void
+    {
+        $user = User::factory()->create();
+
+        // 行の有無を見た後・INSERT の前に、同じ user の別の PUT が先に行を作った（PK の user_id が衝突する）。
+        // updateOrCreate は unique 違反の後に読み直して上書きする。firstOrNew()->save() 等に書き換えると 500 になる。
+        $this->interleaveAfterQuery(
+            'from `seeker_profiles`',
+            fn () => SeekerProfile::query()->forceCreate(['user_id' => $user->id, 'desired_job_type' => '先に保存した値']),
+        );
+
+        $this->actingAs($user)->putJson('/api/seeker-profile', self::VALID)
+            ->assertOk()
+            ->assertJson(['data' => ['desired_job_type' => self::VALID['desired_job_type']]]);
+
+        $this->assertDatabaseCount('seeker_profiles', 1);
+        $this->assertDatabaseHas('seeker_profiles', ['user_id' => $user->id, 'desired_job_type' => self::VALID['desired_job_type']]);
+    }
+
     public function test_seeker_only_updates_their_own_row(): void
     {
         $other = User::factory()->create();
@@ -140,6 +159,9 @@ class SeekerProfileTest extends TestCase
             '都道府県 0' => [['desired_prefecture' => 0], 'desired_prefecture'],
             '都道府県 48' => [['desired_prefecture' => 48], 'desired_prefecture'],
             '都道府県が文字列' => [['desired_prefecture' => '東京都'], 'desired_prefecture'],
+            '都道府県が数字の文字列' => [['desired_prefecture' => '13'], 'desired_prefecture'],
+            '都道府県が真偽値' => [['desired_prefecture' => true], 'desired_prefecture'],
+            '都道府県が小数' => [['desired_prefecture' => 13.5], 'desired_prefecture'],
             'self_pr が配列' => [['self_pr' => ['a']], 'self_pr'],
         ];
     }
@@ -158,6 +180,30 @@ class SeekerProfileTest extends TestCase
             ->assertOnlyJsonValidationErrors([$field]);
 
         $this->assertDatabaseCount('seeker_profiles', 0);
+    }
+
+    /**
+     * @return array<string, array{mixed}>
+     */
+    public static function emptyPrefectures(): array
+    {
+        return [
+            'null（SPA の「選択しない」）' => [null],
+            '空文字（ConvertEmptyStringsToNull で null）' => [''],
+        ];
+    }
+
+    #[DataProvider('emptyPrefectures')]
+    public function test_empty_prefecture_is_saved_as_null(mixed $value): void
+    {
+        $user = User::factory()->create();
+        $user->seekerProfile()->create(self::VALID);
+
+        $this->actingAs($user)->putJson('/api/seeker-profile', [...self::VALID, 'desired_prefecture' => $value])
+            ->assertOk()
+            ->assertJson(['data' => ['desired_prefecture' => null]]);
+
+        $this->assertDatabaseHas('seeker_profiles', ['user_id' => $user->id, 'desired_prefecture' => null]);
     }
 
     public function test_self_pr_of_2000_characters_is_accepted(): void

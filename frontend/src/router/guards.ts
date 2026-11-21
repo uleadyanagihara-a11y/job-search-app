@@ -45,8 +45,9 @@ export async function authGuard(to: RouteLocationNormalized): Promise<boolean | 
     }
 
     // ロールが合わない画面は dashboard へ送る（表示の振り分けだけ。データは API の Policy が守る）。
+    // アプリ内の push から来ても、入れない画面を履歴に残さないよう replace にする（docs/domain-api-contract.md M2.6）。
     if (user !== null && to.meta.roles !== undefined && !to.meta.roles.includes(user.role)) {
-        return { name: 'dashboard' };
+        return { name: 'dashboard', replace: true };
     }
 
     // メール認証 callback の失敗（`?error=`。§5.4）は認証済みでも表示する。

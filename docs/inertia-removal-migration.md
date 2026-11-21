@@ -556,23 +556,27 @@ route middlewareの実行順は、Kernelの`$middlewarePriority`による並べ�
 
 #### 5.5.2 endpoint別middleware
 
+この表は Phase 0 の認証・profile の endpoint と、業務 API に共通の middleware の型だけを載せる。M2 以降に足した個々の endpoint（招待の lookup・accept、求職者プロフィール、各業務 API）の middleware は `docs/domain-api-contract.md` を正とする（2026-11-21 追記）。
+検査は次の test が行う: 全 route の access・limiter 名と、`auth:sanctum` の route に `api.company.active` があること（logout を除く）は `ApiEndpointContractTest`、`api.session` を付けた route の middleware の順序は `EnsureApiSessionTest`、業務 API で `api.verified` が route binding より前に動くことは `SeekerProfileTest`。
+
 | endpoint | middleware |
 | --- | --- |
 | `POST /api/auth/register` | `throttle:auth.register`, `api.guest`, `api.session` |
 | `POST /api/auth/login` | `throttle:auth.login`, `api.guest`, `api.session` + `LoginRequest`のrate limit |
 | `POST /api/auth/forgot-password` | `api.guest`, `throttle:auth.forgot-password` |
 | `POST /api/auth/reset-password` | `api.guest`, `throttle:auth.reset-password` |
-| `GET /api/user` | `auth:sanctum` |
+| `GET /api/user` | `auth:sanctum`, `api.company.active` |
 | `POST /api/auth/logout` | `auth:sanctum`, `api.session` |
-| `POST /api/auth/email/verification-notification` | `auth:sanctum`, `throttle:auth.verification-notification` |
-| `POST /api/auth/confirm-password` | `auth:sanctum`, `throttle:auth.confirm-password`, `api.session` |
-| `GET/PATCH /api/profile` | `auth:sanctum` |
-| `PUT /api/profile/password` | `auth:sanctum`, `throttle:auth.confirm-password`。bodyの`current_password`を検証 |
-| `DELETE /api/profile` | `auth:sanctum`, `throttle:auth.confirm-password`, `api.session`。bodyの`password`を検証 |
-| verification必須の業務API | `auth:sanctum`, `api.verified` + Policy（§5.5.5） |
-| password再確認が必要な業務API | `auth:sanctum`, `api.verified`, `api.password.confirm` + Policy（§5.5.5） |
+| `POST /api/auth/email/verification-notification` | `auth:sanctum`, `api.company.active`, `throttle:auth.verification-notification` |
+| `POST /api/auth/confirm-password` | `auth:sanctum`, `api.company.active`, `throttle:auth.confirm-password`, `api.session` |
+| `GET /api/profile` | `auth:sanctum`, `api.company.active` |
+| `PATCH /api/profile` | `auth:sanctum`, `api.company.active`, `throttle:auth.confirm-password`（email を変えるとき body の `current_password` を検証。M2.2） |
+| `PUT /api/profile/password` | `auth:sanctum`, `api.company.active`, `throttle:auth.confirm-password`。bodyの`current_password`を検証 |
+| `DELETE /api/profile` | `auth:sanctum`, `api.company.active`, `throttle:auth.confirm-password`, `api.session`。bodyの`password`を検証 |
+| verification必須の業務API | `auth:sanctum`, `api.company.active`, `api.verified` + Policy（§5.5.5） |
+| password再確認が必要な業務API | `auth:sanctum`, `api.company.active`, `api.verified`, `api.password.confirm` + Policy（§5.5.5） |
 
-`throttle:<name>`は`AppServiceProvider`の`RateLimiter::for()`で定義する名前付きlimiterで、いずれも6回/分。guest専用endpointはIP単位、認証済みendpointはuser単位で数える。現在passwordを照合するendpoint（`confirm-password`、password更新、account削除）は`auth.confirm-password`を共有し、3 endpointの合計で6回/分に制限する（endpointを変えて現在passwordの試行回数を稼げないようにするため）。`throttle:6,1`はroute間で同じkey（user idまたはdomain|IP）を共有し、別endpointのrequestも同じ回数に合算されるため使わない。Inertia撤去までのWeb側POST（`register`/`login`/`forgot-password`/`reset-password`/`email/verification-notification`/`confirm-password`）と、Web側の`PUT /password`・`DELETE /profile`にも同じ名前のlimiterを付け、Web/APIのrequestを合算して数える（Web側が制限の抜け道にならないようにするため）。Web側で超過した場合は429の標準エラー画面になる。
+`throttle:<name>`は`AppServiceProvider`の`RateLimiter::for()`で定義する名前付きlimiterで、いずれも6回/分。guest専用endpointはIP単位、認証済みendpointはuser単位で数える。現在passwordを照合するendpoint（`confirm-password`、password更新、account削除、M2.2 以降は email 変更の`PATCH /api/profile`も）は`auth.confirm-password`を共有し、これらの合計で6回/分に制限する（endpointを変えて現在passwordの試行回数を稼げないようにするため）。`throttle:6,1`はroute間で同じkey（user idまたはdomain|IP）を共有し、別endpointのrequestも同じ回数に合算されるため使わない。Inertia撤去までのWeb側POST（`register`/`login`/`forgot-password`/`reset-password`/`email/verification-notification`/`confirm-password`）と、Web側の`PUT /password`・`DELETE /profile`にも同じ名前のlimiterを付け、Web/APIのrequestを合算して数える（Web側が制限の抜け道にならないようにするため）。Web側で超過した場合は429の標準エラー画面になる。
 
 loginは2段で制限する。`LoginRequest`がemail+IPの組ごとに失敗5回/分で止め（成功でリセット）、`throttle:auth.login`がIP単位で20回/分（成功も数える）で止める。前者だけではemailを変えて試す攻撃を防げないため後者を重ねる。email単位では数えない（第三者が他人のaccountを締め出せるため）。後者はIP共有環境（NAT等）を考慮して他endpointより緩くしている。どちらも超過時は`429 rate_limited`と`Retry-After`を返し、Vueのlogin画面が「アクセス回数が多すぎます」を表示する。APIはXHRのため、メール認証callback（§5.4）のような`302`＋`error=too-many-requests`のredirectは使わない。Inertia撤去までのWeb側`POST /login`は従来どおり`email`欄のvalidation errorで表示する。
 

@@ -62,12 +62,12 @@ path parameter（`{jobPosting}` 等）のある endpoint は、resource の見�
 | `GET /api/user`、`GET/PATCH /api/profile`、login・register の `data` | `UserResource` に `role`（`"seeker"` / `"company"`）と `company_id`（integer \| null）を足す。既存 field は変えない |
 | `POST /api/auth/register` | 作る user は `role=seeker`。request に `role` があっても無視する（validation にも入れない）。validation の `unique` を通った後に同じ email の user ができていたら（同時の登録・招待の受諾）、`users.email` の unique 制約を正として `409 conflict`（§5.5.5。2026-11-19 追加） |
 | `POST /api/auth/login` | 停止中の企業の担当者は、password が正しくても login させず `403 company_suspended`。password が誤りなら停止中でも今までどおり `422`（`errors.email`）で、`LoginRequest` の失敗回数に数える。停止中で拒否した request は失敗回数に数えない |
-| `PATCH /api/profile` | email を変えるときだけ `current_password` を必須にする（誤りは `422 errors.current_password`）。変えたら古いアドレスへ通知メール（本文に新しいアドレスは載せない。設計書 7 章と同じく個人情報をメールに載せない）。`role`・`company_id` を送っても変わらない。route に `throttle:auth.confirm-password` を足す（現在 password を照合する endpoint の総当たり対策。§5.5.2） |
+| `PATCH /api/profile` | email を変えるときだけ `current_password` を必須にする（誤りは `422 errors.current_password`）。変えたら古いアドレスへ通知メール（本文に新しいアドレスは載せない。設計書 7 章と同じく個人情報をメールに載せない）。`role`・`company_id` を送っても変わらない。route に `throttle:auth.confirm-password` を足す（現在 password を照合する endpoint の総当たり対策。§5.5.2）。validation の `unique` を通った後に同じ email の user ができていたら（同時の登録・招待の受諾・別の user の変更）、`users.email` の unique 制約を正として `409 conflict` で、何も変えず通知も送らない（§5.5.5。2026-11-21 追加） |
 | `DELETE /api/profile` | 所属企業の最後の担当者は `409 conflict`（設計書 8 章）。求職者は `seeker_profiles` も cascade で消える |
 | `auth:sanctum` の全 API（`POST /api/auth/logout` を除く。M2.3 の新しい API も含む） | middleware `api.company.active` を足す。停止中の企業の担当者なら、処理をせずに logout（session の無効化と CSRF token の再生成）して `403 company_suspended`。logout は停止中でも今までどおり `204`（logout できないと SPA が状態を戻せないため） |
 | `GET /auth/email/verify/{id}/{hash}`（web の callback。2026-11-19 追加） | 停止中の企業の担当者なら、email を確認済みにせず、logout して `${FRONTEND_URL}/login?company_suspended=1` へ redirect する。判定は user・hash の照合より前（throttle・signed・auth の後）。web route のため `api.company.active`（JSON を返す）は使わない |
 
-`403 company_suspended` の body の `message` は「この企業アカウントは現在利用できません。運営にお問い合わせください。」とし、SPA の login 画面は既存の `error.message` の表示（alert）でそのまま出す。
+`403 company_suspended` の body の `message` は「この企業アカウントは現在利用できません。運営にお問い合わせください。」とする。SPA の login 画面は `message` に依存せず、`code` が `company_suspended` なら下の `?company_suspended=1` と同じ固定文言の alert を出す（2026-11-21 変更。以前は `error.message` をそのまま出していた）。
 login 以外の API が `403 company_suspended` を返したら、SPA は auth store を破棄して `/login?company_suspended=1` へ `replace` し、login 画面が同じ文を固定文言で出す（`message` に依存しない）。起動時の `GET /api/user` でも同じ（`fetchUser()` は `null` を返す。遷移は handler ではなく最初の遷移の router guard が auth store の印を読んで行う。2 つの遷移を競わせると `?redirect=` 付きの login が勝つため）。処理は `frontend/src/router/apiErrorHandlers.ts`。
 
 ### M2.3 新しい API
@@ -96,7 +96,7 @@ login 以外の API が `403 company_suspended` を返したら、SPA は auth s
 
 | field | 型 | validation（PUT） |
 | --- | --- | --- |
-| `desired_prefecture` | integer \| null | nullable・`Prefecture` enum（1〜47） |
+| `desired_prefecture` | integer \| null | nullable・`integer:strict`（JSON の数値だけ。`"13"`・`true`・小数は `422`。2026-11-21 追加）・`Prefecture` enum（1〜47） |
 | `desired_job_type` | string \| null | nullable・string・max:100 |
 | `self_pr` | string \| null | nullable・string・max:2000 |
 | `updated_at` | string \| null | 返すだけ（行が無ければ `null`） |
@@ -104,7 +104,7 @@ login 以外の API が `403 company_suspended` を返したら、SPA は auth s
 - PUT は全 field を送る置き換え。送らなかった field は `null` にする（部分更新の PATCH にしない。form は常に全欄を送るため）。
 - 応募に必要な必須項目は M5 で決める（設計書 4 章）。M2 では全項目任意。
 - 企業担当者が応募者のプロフィールを見る API は M5（応募と一緒に作る）。
-- `lang/ja/validation.php` の `attributes` に `desired_prefecture`（希望勤務地）・`desired_job_type`（希望職種）・`self_pr`（自己 PR）・`token`（招待のリンク）を足す（`.claude/rules/laravel.md` の言語の規約）。`token` は既に「再設定用のトークン」のため、招待では `errors.token` の文を FormRequest の `messages()` で上書きする。
+- `lang/ja/validation.php` の `attributes` に `desired_prefecture`（希望勤務地）・`desired_job_type`（希望職種）・`self_pr`（自己 PR）を足す（`.claude/rules/laravel.md` の言語の規約）。`token` は lang では既に「再設定用のトークン」（password 再設定用）のため、招待では `InvitationLookupRequest::attributes()` で表示名を「招待のリンク」に上書きする（accept の FormRequest はこれを継承する。2026-11-21 に実装に合わせて修正）。
 
 ### M2.4 認可と middleware の実行順
 
@@ -132,7 +132,7 @@ API ではないが、契約の確認に必要なものだけ書く。
 | `/invitations/:token` | `invitation.accept` | `access: 'guest'` | 開いたら lookup。会社名と email（変更不可）を表示し、名前と password を入力して accept |
 | `/seeker-profile` | `seeker-profile` | `roles: ['seeker']` | 求職者プロフィールの編集（nav にも出すのは求職者だけ） |
 
-- `meta.roles` を持つ route にロールが合わない user が来たら dashboard へ `replace` する（表示の振り分けだけ。データは API の Policy が守る。§6.1）。判定は `guards.ts` の `routeAccess()` に足す。
+- `meta.roles` を持つ route にロールが合わない user が来たら dashboard へ `replace` する（表示の振り分けだけ。データは API の Policy が守る。§6.1）。判定は `guards.ts` の `authGuard` で、未ログイン・メール未確認の判定の後に行い、ロールが合わないときの redirect に `replace: true` を付ける（アプリ内の `push` から来ても履歴に残さない。2026-11-21 に実装に合わせて修正。以前は「`routeAccess()` に足す」と書いていた）。nav の項目の `roles` は `frontend/src/layouts/navigation.ts` に route の `meta.roles` と同じ値を書き、一致は `tests/router/navigation.test.ts` で確かめる。
 - 招待受諾画面は §6.1 の「公開する画面」に足す。ログイン中に開いたら guest 用の guard で dashboard へ送られる（API も `409 already_authenticated`）。
 
 ### M2.7 feature test の観点
@@ -143,7 +143,7 @@ API ではないが、契約の確認に必要なものだけ書く。
 | --- | --- |
 | `UserResource` | 求職者は `role: "seeker"`, `company_id: null`、担当者は `role: "company"` と所属企業の id |
 | register | `role` を送っても `seeker` になる。validation の後に同じ email の user ができていたら `409` で、ログインしない |
-| `PATCH /api/profile` | `role`・`company_id` を送っても変わらない。email を変えるとき `current_password` が無い・誤りなら `422` で何も変わらない。変えたら古いアドレスに通知が送られる。email を変えないなら `current_password` は不要 |
+| `PATCH /api/profile` | `role`・`company_id` を送っても変わらない。email を変えるとき `current_password` が無い・誤りなら `422` で何も変わらない。変えたら古いアドレスに通知が送られる。email を変えないなら `current_password` は不要。validation の後に同じ email の user ができていたら `409` で、email は変わらず通知も送られない |
 | login | 停止中の担当者は正しい password で `403 company_suspended`・ログインしていない。誤った password では `422`（停止中かどうか分からない） |
 | `company:suspend` | 担当者の session cookie で `GET /api/user` が `403 company_suspended`、その後は同じ cookie で `401`（logout 済み）。remember cookie でも再認証されない（`remember_token` が変わる）。`sessions` の行は消さない（driver に依存しない） |
 | `api.company.active` | `auth:sanctum` の route は logout 以外すべてに付いている。停止中の担当者はどの API でも `403 company_suspended`（空 body でも `422` より前）で、logout される。メール未確認でも `403 company_suspended`。logout は停止中でも `204`。求職者・停止されていない担当者は変わらない |
@@ -166,7 +166,8 @@ API ではないが、契約の確認に必要なものだけ書く。
 - `PUT /api/seeker-profile` は FormRequest を引数で受けず、`Gate::authorize()` の後に解決する。引数で受けると validation が認可より先に動き、企業担当者に `403` ではなく `422` を返すため。行を作ったときも `201` ではなく `200`。
 - `PATCH /api/profile` は email が空のときは `current_password` を求めない（`email` の required だけを返す）。email を変えないときに送られた `current_password` は照合しない。SPA の「現在のパスワード」欄は email を変えたときだけ出し、`required` 属性は付けない（server の `422` で日本語の message を出すため）。
 - `DELETE /api/profile` の最後の担当者の判定は、同じ企業の `company_members` の行を lock して数える（2 人が同時に削除して 0 人にならないように）。
-- `company:create`・`company:invite` は email を小文字にそろえる。`company:invite` は停止中の企業には送らずエラーで終了する（受諾できない招待を送らないため）。`company:create` は招待メールを送れなかったら企業も作らない。
+- `company:create`・`company:invite` は email を小文字にそろえる。`company:invite` は停止中の企業には送らずエラーで終了する（受諾できない招待を送らないため）。`company:create` は招待メールを送れなかったら企業も作らない。`company:invite` も招待の発行（古い招待の無効化を含む）とメールの送信を 1 つの transaction で行い、送れなかったら古い招待を有効なまま残す（2026-11-21 追加）。
+- 招待の受諾は、企業が停止中かどうかを transaction の外（最初の判定）でだけ見て、lock の中では確かめ直さない（2026-11-21 決定）。受諾と `company:suspend` が同時に起きると、停止中の企業の担当者ができて `201` が返り得るが、次の API で `api.company.active` が `403 company_suspended` にして logout させ、login も `403` になる（accept は remember cookie を発行しないため、再認証の経路も無い）。設計書 2 章「企業の停止」の、応募と停止の競合を lock しない決定と同じ考え方で、企業の行を lock して `company:suspend` と順序を決める処理は入れない。
 - 開発用の user は `DatabaseSeeder`（`seeker@example.com`・`company@example.com`、password は `password`）、E2E 用は `E2eSeeder`（`laravel.e2e` の起動時。求職者・企業担当者・停止中の企業の担当者と、`e2e-invited@example.com` への招待メール）。E2E の user の email は `frontend/e2e/helpers.ts` の `E2E_USERS` と揃える。
 - SPA の共通部品として `PageHeading`・`ContentCard`・`AlertMessage`・`MutedText`・`SavedStatus`・`SelectInput`・`TextareaInput` を `frontend/src/components/` に足した。
 

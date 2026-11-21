@@ -6,11 +6,15 @@ use App\Models\Company;
 use App\Models\CompanyInvitation;
 use App\Models\User;
 use App\Notifications\CompanyInvitationNotification;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
+use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -86,6 +90,36 @@ class CompanyCommandsTest extends TestCase
         $this->assertDatabaseCount('company_invitations', 2);
         $this->assertNull(CompanyInvitation::query()->usable($oldToken)->first());
         Notification::assertSentOnDemandTimes(CompanyInvitationNotification::class, 1);
+    }
+
+    public function test_create_does_not_create_anything_when_the_invitation_mail_fails(): void
+    {
+        $this->failInvitationMail();
+
+        $this->runExpectingMailFailure('company:create', ['name' => '新規株式会社', 'email' => 'owner@example.com']);
+
+        $this->assertDatabaseCount('companies', 0);
+        $this->assertDatabaseCount('company_invitations', 0);
+    }
+
+    public function test_invite_keeps_the_previous_invitation_usable_when_the_mail_fails(): void
+    {
+        $company = Company::factory()->create();
+        $oldToken = CompanyInvitation::issue($company, 'member@example.com');
+        $this->failInvitationMail();
+
+        $this->runExpectingMailFailure('company:invite', ['company' => $company->id, 'email' => 'member@example.com']);
+
+        $this->assertDatabaseCount('company_invitations', 1);
+        $this->assertNotNull(CompanyInvitation::query()->usable($oldToken)->first());
+    }
+
+    public function test_invitation_mail_is_sent_synchronously(): void
+    {
+        // 上の 2 つの test の「送れなかったら rollback する」は、送信が transaction の中で同期に行われることが前提。
+        // ShouldQueue にすると本番では commit 後に worker が送るため、失敗しても古い招待は無効のままになる
+        // （test は sync queue のため通り続ける）。queue にするなら、送信の失敗の扱いを設計し直してからこの test を直す。
+        $this->assertNotContains(ShouldQueue::class, class_implements(CompanyInvitationNotification::class));
     }
 
     public function test_invite_fails_for_missing_or_suspended_company(): void
@@ -167,5 +201,30 @@ class CompanyCommandsTest extends TestCase
         $this->defaultCookies = [];
 
         return $this->withCredentials()->withCookies($cookies)->fromFrontend()->getJson($uri);
+    }
+
+    /**
+     * 招待メールの送信を SMTP の失敗と同じく例外にする（Notification::fake() は送信の前の event を出さないため使わない）。
+     */
+    private function failInvitationMail(): void
+    {
+        Event::listen(function (NotificationSending $event) {
+            if ($event->notification instanceof CompanyInvitationNotification) {
+                throw new RuntimeException('SMTP に接続できない');
+            }
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $parameters
+     */
+    private function runExpectingMailFailure(string $command, array $parameters): void
+    {
+        try {
+            $this->artisan($command, $parameters)->run();
+            $this->fail('招待メールの送信の失敗が command の外へ伝わらなかった');
+        } catch (RuntimeException $e) {
+            $this->assertSame('SMTP に接続できない', $e->getMessage());
+        }
     }
 }

@@ -27,7 +27,7 @@ Vue SPA（経緯と API 契約は `docs/inertia-removal-migration.md`）。Sail 
 | 依存インストール（初回・lock 更新後） | `docker compose run --rm --no-deps frontend npm ci` |
 | Vite dev サーバ | `./vendor/bin/sail up -d` で `frontend` service として起動（`frontend:5173`、host には非公開） |
 | ブラウザ確認 | http://localhost:8080（nginx。画面/HMR は Vite、`/api` `/sanctum` `/auth/email/verify` `/storage` `/up` は Laravel） |
-| Nginx 振り分けの確認 | `./docker/nginx/smoke-test.sh`（ホストの curl で実行。path ごとの upstream/status、HMR WebSocket、Host 検査） |
+| Nginx 振り分けの確認 | `./docker/nginx/smoke-test.sh`（ホストの curl で実行。path ごとの upstream/status、HMR WebSocket、Host 検査、access log に Referer が残らないこと） |
 
 - `frontend` が止まっていても nginx と API は動く（画面だけ 502）。
 - `node_modules` は bind mount（`frontend/node_modules`）なので、ホストの VSCode の Vue 拡張・ESLint がそのまま使える。
@@ -41,6 +41,8 @@ Vue SPA（経緯と API 契約は `docs/inertia-removal-migration.md`）。Sail 
 - `docker/nginx/default.conf` は nginx image の templates として mount し、`${LARAVEL_UPSTREAM}` を起動時に envsubst する（nginx 変数の `$http_host` 等は置換されない）。
   編集後は `docker compose up -d --force-recreate nginx`（`restart` だと WSL2 で単一ファイルの bind mount が壊れたままになり起動しない）。
 - 全 response に `Referrer-Policy: same-origin` を付けている（password 再設定・招待の token の URL が外部へ Referer で漏れないように。`docs/domain-design.md`）。smoke test と E2E の `smoke.spec.ts` で確認する。
+- 同一 origin への request にはその token の URL が Referer として付くため、access log は Referer を出さない `log_format no_referer` にしている。access log を調べるときに Referer は見られない（smoke test で確認する）。
+  error log（upstream の 502 等）は nginx が行の末尾に `referrer: "..."` を付けるため、token を含む URL が残る。原因の調査に必要なので、development では level を上げずに許容する。
 
 ### E2E の環境
 

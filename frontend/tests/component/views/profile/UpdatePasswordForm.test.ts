@@ -76,6 +76,7 @@ describe('UpdatePasswordForm', () => {
 
         expect(wrapper.get('[role="alert"]').text()).toBe('試行回数が多すぎます。');
         expect(valueOf(wrapper, CURRENT)).toBe('old-secret');
-        expect(wrapper.find('[role="status"]').exists()).toBe(false);
+        // live region は常にあり、文言だけが出ない（SavedStatus）
+        expect(wrapper.get('[role="status"]').text()).toBe('');
     });
 });

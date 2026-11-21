@@ -36,9 +36,15 @@ const passwordResetStatus = (() => {
 // 未ログインでメール認証リンクを開くと、Laravel の callback がここへ送る（§5.4）。
 const verificationRequired = computed(() => route.query.verification_required === '1');
 
-// ログイン中（起動時の GET /api/user を含む）に所属企業が停止されていると、ここへ送られる（src/router/apiErrorHandlers.ts）。
-// login を試して API の error が出たら、そちらの alert だけにする。
-const companySuspended = computed(() => route.query.company_suspended === '1' && !error.value);
+// 所属企業が停止されていることを、`message` に依存せず固定文言で伝える（docs/domain-api-contract.md M2.2）。
+// - login API が 403 company_suspended を返したとき
+// - ログイン中（起動時の GET /api/user を含む）に停止され、?company_suspended=1 で送られてきたとき（src/router/apiErrorHandlers.ts）。
+//   login を試して別の error が出たら、そちらの alert だけにする。
+const companySuspendedOnLogin = computed(() => error.value?.code === 'company_suspended');
+const companySuspended = computed(
+    () => companySuspendedOnLogin.value || (route.query.company_suspended === '1' && !error.value),
+);
+const otherError = computed(() => (companySuspendedOnLogin.value ? null : error.value));
 
 async function onSubmit(): Promise<void> {
     await submit(authApi.login, {
@@ -78,11 +84,11 @@ async function onSubmit(): Promise<void> {
         </AlertMessage>
 
         <p
-            v-if="error"
+            v-if="otherError"
             role="alert"
             class="mb-4 text-sm text-danger-600"
         >
-            {{ error.message }}
+            {{ otherError.message }}
         </p>
 
         <form @submit.prevent="onSubmit">

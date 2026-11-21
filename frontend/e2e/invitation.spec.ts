@@ -6,12 +6,14 @@ import { E2E_INVITED_EMAIL, E2E_USERS, latestMailText, PASSWORD } from './helper
 // 招待は 1 回しか使えないため、この spec は laravel.e2e を起動し直すまで 1 回だけ通る（CI の retry では 2 回目が失敗する）。
 
 test('招待メールの URL から名前と password を設定して企業担当者になり、同じ URL は使えなくなる', async ({ page, request }) => {
-    const invitationUrl = /http:\/\/localhost\/invitations\/[A-Za-z0-9]+/.exec(
-        await latestMailText(request, E2E_INVITED_EMAIL),
-    )?.[0];
-    expect(invitationUrl).toBeDefined();
+    // メールの URL の host は laravel.e2e の FRONTEND_URL で決まり、baseURL（E2E_BASE_URL）とは別の設定。
+    // host に依存しないよう path だけを取り出し、baseURL からの相対で開く。
+    const invitationPath = /\/invitations\/[A-Za-z0-9]+/.exec(await latestMailText(request, E2E_INVITED_EMAIL))?.[0];
+    if (invitationPath === undefined) {
+        throw new Error('招待メールに /invitations/{token} の URL が無い');
+    }
 
-    await page.goto(invitationUrl!);
+    await page.goto(invitationPath);
     await expect(page).toHaveTitle('招待の受諾 - Job Search App');
     await expect(page.getByText(`「${E2E_USERS.company.companyName}」の担当者として招待されています。`)).toBeVisible();
     await expect(page.getByLabel('メールアドレス')).toHaveValue(E2E_INVITED_EMAIL);
@@ -34,7 +36,7 @@ test('招待メールの URL から名前と password を設定して企業担�
     await expect(page.getByRole('link', { name: '求職者プロフィール' })).toHaveCount(0);
 
     // ログイン中に招待の URL を開くと guest 用の guard で dashboard へ送られる
-    await page.goto(invitationUrl!);
+    await page.goto(invitationPath);
     await expect(page).toHaveURL('/dashboard');
 
     await page.getByRole('button', { name: '招待 太郎' }).click();
@@ -42,7 +44,7 @@ test('招待メールの URL から名前と password を設定して企業担�
     await expect(page).toHaveURL('/login');
 
     // 使用済みの招待は理由を区別せず無効と表示する
-    await page.goto(invitationUrl!);
+    await page.goto(invitationPath);
     await expect(page.getByRole('alert')).toHaveText('招待のリンクが無効か、有効期限が切れています。');
     await expect(page.getByRole('button', { name: '登録してログイン' })).toHaveCount(0);
 

@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Console\Commands\Concerns\InvitesCompanyMembers;
 use App\Models\Company;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 /**
  * 既存の企業へ招待を送り直す。同じ email の未使用の招待は無効になる。期限切れの再送もこれで行う
@@ -43,7 +44,9 @@ class InviteCompanyMember extends Command
             return self::FAILURE;
         }
 
-        $this->sendInvitation($company, $email);
+        // 古い招待の無効化とメールの送信を 1 つの transaction にし、送信に失敗したら
+        // 相手の手元にある有効なリンクを無効にしない（docs/domain-api-contract.md M2.9）。
+        DB::transaction(fn () => $this->sendInvitation($company, $email));
 
         $this->info("企業: #{$company->id} {$company->name}");
 

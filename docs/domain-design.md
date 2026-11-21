@@ -19,7 +19,7 @@ M2 以降の実装はこの文書を基準にし、方針を変えるときは�
 - 企業担当者は `company_members` で `companies` に属する。`company_members.user_id` は unique（1 人は 1 社だけに属する）。
 - 既存 user は migration で `seeker` にする。
 - ロールの判定は Policy に書き、専用 middleware にしない（§5.5.5）。
-- `role` と所属企業は利用者が変えられない（**決定**）。`User` の `#[Fillable]` にも、profile 更新などの FormRequest の validation にも入れない（`ProfileController` は `fill($request->validated())` のため、FormRequest に入れると書き換えられる）。`PATCH /api/profile` に `role` を送っても変わらないことを feature test で確認する。
+- `role` と所属企業は利用者が変えられない（**決定**）。`User` の `#[Fillable]` にも、profile 更新などの FormRequest の validation にも入れない（`ProfileController` は FormRequest の `profileAttributes()`（`validated()` から `name`・`email` だけを取り出したもの）を `fill` する。rules と取り出す key の両方に入れない）。`PATCH /api/profile` に `role` を送っても変わらないことを feature test で確認する。
 - 企業担当者のメールアドレス変更には現在の password を必須にし、変更したら古いアドレスに通知メールを送る（**決定**。session を奪われたときにアカウントごと乗っ取られないようにするため。求職者にも同じ扱いにするかは M2 の API 契約で決める）。
 - SPA がロールで画面を振り分けられるよう、M2 で `/api/user`（と `/api/profile`）の response に `role` と、企業担当者なら所属企業の id を足す。router guard の振り分けは表示のためだけで、データの保護は API の Policy が担う（§6.1）。
 
@@ -33,7 +33,7 @@ M2 以降の実装はこの文書を基準にし、方針を変えるときは�
   2. 担当者はメールの URL から SPA の招待受諾画面を開き、名前と password を設定する。
   3. 受諾すると `role=company` の user と `company_members` を作り、ログイン状態にする。メールの到達で本人確認できているので、`email_verified_at` は受諾した時刻にする。
 - 招待（`company_invitations`）: token は hash にして保存し、期限付き・1 回だけ使える。同じ email に招待し直したら古い token は無効にする。受諾 API は guest 用で throttle を付ける。
-- token を API の path に入れない（**決定**）。招待受諾画面は URL の token を読み、検証・受諾の API へは POST の body で送る（access log に残る箇所を、画面を開いたときの 1 回に減らすため）。外部への Referer による漏れは、nginx の `Referrer-Policy: same-origin` で防ぐ（M0 で入れる。既存のパスワード再設定 URL にも効く）。
+- token を API の path に入れない（**決定**）。招待受諾画面は URL の token を読み、検証・受諾の API へは POST の body で送る（access log に残る箇所を、画面を開いたときの 1 回に減らすため）。外部への Referer による漏れは、nginx の `Referrer-Policy: same-origin` で防ぐ（M0 で入れる。既存のパスワード再設定 URL にも効く）。同一 origin への request（CSRF cookie・API・asset）には画面の URL が Referer として付くため、nginx の access log は Referer を出さない形式（`docker/nginx/default.conf` の `log_format no_referer`）にする（2026-11-21。`docker/nginx/smoke-test.sh` で確認）。upstream のエラー時の error log には Referer が残る（development では許容。`docs/development.md`）。
 - 受諾時の email は招待に保存したものだけを使い、request では受け取らない。受諾してログインさせるときは session を作り直す（session fixation 対策）。停止中の企業への招待は受諾できない。
   - 実装時に確定: 有効期限、既に登録済みの email を招待した場合の扱い（artisan の時点でエラーにし、受諾時にも 409）。
 - 招待受諾画面は未ログインで開く guest route（`meta.access: 'guest'`）にする。§6.1 で公開する画面にこれを追加する。

@@ -7,19 +7,14 @@ import DropdownLink from '@/components/DropdownLink.vue';
 import NavLink from '@/components/NavLink.vue';
 import ResponsiveNavLink from '@/components/ResponsiveNavLink.vue';
 import { useAuthStore } from '@/stores/auth';
-import type { Role } from '@/types/api';
+import { navigationItems as allNavigationItems } from '@/layouts/navigation';
 
 const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 
-// desktop と responsive menu はこの一覧から描画し、片方だけに項目を足すことが無いようにする。
-// navigationItems は上段の navigation、settingsItems は user 名の dropdown（responsive では user 情報の下）に並べる。
-// roles のある項目は、そのロールの user にだけ出す（route の meta.roles と揃える。docs/domain-api-contract.md M2.6）。
-const allNavigationItems: readonly { name: string; label: string; roles?: readonly Role[] }[] = [
-    { name: 'dashboard', label: 'ダッシュボード' },
-    { name: 'seeker-profile', label: '求職者プロフィール', roles: ['seeker'] },
-];
+// navigationItems は上段の navigation（一覧と roles は ./navigation.ts）、settingsItems は user 名の dropdown
+// （responsive では user 情報の下）に並べる。
 const navigationItems = computed(() => {
     const role = auth.user.value?.role;
 

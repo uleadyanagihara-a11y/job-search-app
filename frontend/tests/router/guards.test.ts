@@ -141,6 +141,20 @@ describe('authGuard', () => {
             expect(router.currentRoute.value.name).toBe('dashboard');
         });
 
+        it('アプリ内の push から来ても、dashboard へは replace で送り、入れない画面を履歴に残さない', async () => {
+            const router = await createTestRouter(companyUser);
+            await router.push('/profile');
+            const history = router.options.history;
+            const push = vi.spyOn(history, 'push');
+            const replace = vi.spyOn(history, 'replace');
+
+            await router.push('/seeker-profile');
+
+            expect(router.currentRoute.value.name).toBe('dashboard');
+            expect(push).not.toHaveBeenCalled();
+            expect(replace).toHaveBeenCalledOnce();
+        });
+
         it('メール未認証ならロールより先に verification.notice へ送る', async () => {
             const router = await createTestRouter({ ...companyUser, email_verified_at: null });
 
