@@ -9,7 +9,7 @@ import type { User } from '@/types/api';
 
 vi.mock('@/api/auth', () => ({ logout: vi.fn() }));
 
-const user: User = { id: 1, name: 'Test User', email: 'test@example.com', email_verified_at: '2026-10-01T00:00:00+09:00' };
+const user: User = { id: 1, name: 'Test User', email: 'test@example.com', email_verified_at: '2026-10-01T00:00:00+09:00', role: 'seeker', company_id: null };
 
 let router: Router;
 

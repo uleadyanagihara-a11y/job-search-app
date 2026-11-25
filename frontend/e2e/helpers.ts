@@ -97,3 +97,57 @@ export async function latestMailText(request: APIRequestContext, email: string):
 
     return body.Text;
 }
+
+// --- 複数ロール（docs/domain-design.md 2 章）---
+// database/seeders/E2eSeeder.php が laravel.e2e の起動時に作る user。email・password は seeder と揃える。
+// register の rate limit を避けるため、ロールごとの確認はこの user で行う（register 自体の確認は guest-auth.spec.ts）。
+
+export const E2E_USERS = {
+    seeker: { email: 'e2e-seeker@example.com', name: 'E2E 求職者' },
+    company: { email: 'e2e-company@example.com', name: 'E2E 担当者', companyName: 'E2E 株式会社' },
+    suspended: { email: 'e2e-suspended@example.com', name: 'E2E 停止中の担当者' },
+} as const;
+
+export type E2eUser = keyof typeof E2E_USERS;
+
+/**
+ * SPA の API client と同じ手順で login API を呼び、page の context に session を作る。status を返す。
+ * 画面からの login の確認は guest-auth.spec.ts で行うため、ここは前提の用意だけに使う。
+ */
+export async function loginViaApi(page: Page, user: E2eUser, password = PASSWORD): Promise<number> {
+    if (!page.url().startsWith('http')) {
+        await page.goto('/login');
+    }
+
+    return page.evaluate(
+        async ({ email, password }) => {
+            await fetch('/sanctum/csrf-cookie', { headers: { Accept: 'application/json' } });
+
+            const token = document.cookie
+                .split('; ')
+                .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
+                ?.slice('XSRF-TOKEN='.length);
+
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-XSRF-TOKEN': decodeURIComponent(token ?? ''),
+                },
+                body: JSON.stringify({ email, password }),
+            });
+
+            return response.status;
+        },
+        { email: E2E_USERS[user].email, password },
+    );
+}
+
+/**
+ * ロールの user で login し、path を開く。
+ */
+export async function openAs(page: Page, user: E2eUser, path: string): Promise<void> {
+    expect(await loginViaApi(page, user)).toBe(200);
+    await page.goto(path);
+}

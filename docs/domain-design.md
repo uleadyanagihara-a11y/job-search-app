@@ -29,7 +29,7 @@ M2 以降の実装はこの文書を基準にし、方針を変えるときは�
 
 - 理由: 偽の企業による求人詐欺を防ぎ、応募者の個人情報を確認済みの企業にだけ渡すため。招待の仕組みは、後から担当者の追加（企業内での招待）や申請・承認制へ広げるときにも使う。
 - 流れ:
-  1. 運営が `company:create`（名前は実装時に確定）で `companies` と招待を作り、招待メールを送る。
+  1. 運営が `company:create` で `companies` と招待を作り、招待メールを送る（command の一覧は `docs/domain-api-contract.md` M2.5）。
   2. 担当者はメールの URL から SPA の招待受諾画面を開き、名前と password を設定する。
   3. 受諾すると `role=company` の user と `company_members` を作り、ログイン状態にする。メールの到達で本人確認できているので、`email_verified_at` は受諾した時刻にする。
 - 招待（`company_invitations`）: token は hash にして保存し、期限付き・1 回だけ使える。同じ email に招待し直したら古い token は無効にする。受諾 API は guest 用で throttle を付ける。
